@@ -10,9 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@tensorflow-models/knn-classifier": "^1.2.6",
     "@tensorflow/tfjs": "^4.22.0",
     "lucide-react": "^0.562.0",
+    "markdown-to-jsx": "^9.5.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
