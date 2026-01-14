@@ -11,12 +11,17 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
+    "@react-three/postprocessing": "^3.0.4",
     "@tensorflow-models/knn-classifier": "^1.2.6",
     "@tensorflow/tfjs": "^4.22.0",
+    "@types/three": "^0.182.0",
     "lucide-react": "^0.562.0",
     "markdown-to-jsx": "^9.5.1",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "three": "^0.182.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
