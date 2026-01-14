@@ -5,9 +5,7 @@ import * as tf from '@tensorflow/tfjs';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Markdown from 'markdown-to-jsx';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { PerspectiveCamera, Environment } from '@react-three/drei';
-import { Circle, OrbitControls, Stats } from '@react-three/drei';
-
+import { PerspectiveCamera, Environment, Circle, Stats, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 
 // --- IMPORT CHARACTER ---
@@ -41,18 +39,11 @@ const TRAINING_STEPS: { id: PoseClass, label: string, instruction: string }[] = 
 
 // --- 3D SCENE ---
 const BoxingRing = () => (
-    <group position={[0, 0.1, 0]}>
-        {/* Clean Floor */}
+    <group position={[0, -3.5, 0]}>
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
             <planeGeometry args={[100, 100]} />
-            <meshStandardMaterial
-                color="#050505"
-                roughness={0.9}
-                metalness={0.0}
-            />
+            <meshStandardMaterial color="#f0f0f0" roughness={0.5} metalness={0.1} />
         </mesh>
-
-        {/* Minimalist Ropes */}
         {[1, 2, 3, 4].map((h, i) => (
             <group key={i} position={[0, h * 0.7, 0]}>
                 <mesh position={[0, 0, -7]} rotation={[0, 0, 1.57]}><cylinderGeometry args={[0.02, 0.02, 14]} /><meshStandardMaterial color="#333" /></mesh>
@@ -61,12 +52,11 @@ const BoxingRing = () => (
                 <mesh position={[7, 0, 0]} rotation={[1.57, 0, 0]}><cylinderGeometry args={[0.02, 0.02, 14]} /><meshStandardMaterial color="#333" /></mesh>
             </group>
         ))}
-        {/* Posts */}
         {[[-7, -7], [7, -7], [-7, 7], [7, 7]].map(([x, z], i) => <mesh key={i} position={[x, 2.5, z]}><cylinderGeometry args={[0.1, 0.1, 6]} /><meshStandardMaterial color="#999" roughness={0.2} metalness={0.8} /></mesh>)}
     </group>
 );
 
-const Scene3D: React.FC<{ activePunchRef: React.RefObject<Punch | null>, damage: boolean }> = ({ activePunchRef }) => {
+const Scene3D: React.FC<{ activePunchRef: React.RefObject<Punch | null>, damage: boolean }> = ({ activePunchRef, damage }) => {
     const [punchData, setPunchData] = useState<Punch | null>(null);
     const lastPunchId = useRef<string>("");
 
@@ -80,23 +70,21 @@ const Scene3D: React.FC<{ activePunchRef: React.RefObject<Punch | null>, damage:
 
     return (
         <>
-            {/* Clean Bright Background */}
-            <color attach="background" args={["#ff0909ff"]} />
+            <color attach="background" args={["#e5e5e5"]} />
+            <Environment preset="city" />
+            <ambientLight intensity={0.6} />
+            <directionalLight position={[2, 5, 2]} intensity={1.5} castShadow />
 
-            {/* Professional Lighting */}
-            {/* <Environment preset="city" /> */}
-            <ambientLight intensity={0.5} />
-            {/* <directionalLight position={[5, 10, 5]} intensity={1} castShadow /> */}
-            <directionalLight position={[2, 5, 3]} castShadow intensity={2} />
-
-            <PerspectiveCamera makeDefault position={[0, 3, 3.5]} fov={85} />
+            <PerspectiveCamera makeDefault position={[0, 1.3, 2.2]} fov={70} />
 
             <BoxingRing />
+
             <Opponent activePunch={punchData} />
+
             <Circle args={[10]} rotation-x={-Math.PI / 2} receiveShadow>
                 <meshStandardMaterial color="#444" />
             </Circle>
-            <OrbitControls target={[0, 2.5, 0]} />
+            <OrbitControls target={[0, 0, 0]} />
         </>
     );
 };
@@ -116,6 +104,11 @@ const GeminiBoxingCoach: React.FC = () => {
     const comboRef = useRef<number>(0);
     const timeLeftRef = useRef<number>(ROUND_TIME);
 
+    // TIMING REFS
+    const timerRef = useRef<number | null>(null);
+    const speedMultiplierRef = useRef(1.0);
+    const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
+
     const classifierRef = useRef<knnClassifier.KNNClassifier | null>(null);
     const currentPoseLabel = useRef<PoseClass>('NEUTRAL');
 
@@ -134,12 +127,71 @@ const GeminiBoxingCoach: React.FC = () => {
     const [aiFeedback, setAiFeedback] = useState<string>("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [cameraReady, setCameraReady] = useState(false);
-
-    // FIXED: Added missing damageFlash state
     const [damageFlash, setDamageFlash] = useState(false);
 
     useEffect(() => { classifierRef.current = knnClassifier.create(); }, []);
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+
+    // Sync state to ref
+    useEffect(() => { speedMultiplierRef.current = speedMultiplier; }, [speedMultiplier]);
+
+    // --- SIMPLIFIED GAME LOOP (NO LAG) ---
+    const scheduleNextPunch = useCallback(() => {
+        // 1. Clean up old timer
+        if (timerRef.current) clearTimeout(timerRef.current);
+
+        if (gameStateRef.current !== 'PLAYING' || timeLeftRef.current <= 0) return;
+
+        const currentSpeed = speedMultiplierRef.current;
+
+        // 2. Calculate Timings
+        const idleDelay = (1000 + Math.random() * 1000) / currentSpeed; // Wait 1-2s between punches
+
+        // 3. Set Timer
+        timerRef.current = window.setTimeout(() => {
+            if (gameStateRef.current !== 'PLAYING') return;
+
+            // Simple Random Logic (No smart deck overhead, keeps it lightweight)
+            const move: { side: PunchSide, type: PunchType } =
+                Math.random() < 0.5
+                    ? { side: 'left', type: 'straight' }
+                    : Math.random() < 0.5
+                        ? { side: 'right', type: 'straight' }
+                        : Math.random() < 0.5
+                            ? { side: 'left', type: 'hook' }
+                            : { side: 'right', type: 'hook' };
+
+            // Calculate exact duration so Opponent.tsx can sync perfectly
+            // Base duration 1200ms (standard punch) scaled by speed
+            const punchDuration = 1200 / currentSpeed;
+
+            activePunchRef.current = {
+                id: `punch-${Date.now()}-${Math.random()}`,
+                side: move.side,
+                type: move.type,
+                startTime: performance.now(),
+                duration: punchDuration,
+                status: 'flying'
+            };
+
+            // Loop: Schedule next punch after this one finishes
+            // We wait for the punch duration + the idle delay
+            timerRef.current = window.setTimeout(scheduleNextPunch, punchDuration + 200);
+
+        }, idleDelay);
+
+    }, []);
+
+    // Start/Stop Loop on Game State
+    useEffect(() => {
+        if (gameState === 'PLAYING') {
+            scheduleNextPunch();
+        } else {
+            if (timerRef.current) clearTimeout(timerRef.current);
+        }
+        return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    }, [gameState, scheduleNextPunch]);
+
 
     const trainAI = (label: string, landmarks: any[]) => {
         if (!classifierRef.current) return;
@@ -182,24 +234,6 @@ const GeminiBoxingCoach: React.FC = () => {
         setIsAnalyzing(false);
     };
 
-    const triggerNextPunch = useCallback(() => {
-        if (gameStateRef.current !== 'PLAYING') return;
-        if (timeLeftRef.current <= 0) return;
-
-        const side = Math.random() > 0.5 ? 'left' : 'right';
-        const type = Math.random() > 0.4 ? 'straight' : 'hook';
-        const speedMod = Math.min(300, comboRef.current * 10);
-
-        activePunchRef.current = {
-            id: `punch-${Date.now()}-${Math.random()}`,
-            side: side as PunchSide,
-            type: type as PunchType,
-            startTime: performance.now(),
-            duration: Math.max(600, 1200 - speedMod),
-            status: 'flying'
-        };
-    }, []);
-
     const startCalibration = () => setGameState('CALIBRATING_DIMENSIONS');
     const startAITraining = () => {
         setGameState('TRAINING_AI');
@@ -218,7 +252,6 @@ const GeminiBoxingCoach: React.FC = () => {
                     timeLeftRef.current = newVal;
                     if (newVal <= 0) {
                         setGameState('FINISHED');
-                        activePunchRef.current = null;
                         return 0;
                     }
                     return newVal;
@@ -308,7 +341,6 @@ const GeminiBoxingCoach: React.FC = () => {
                             setTimeout(() => {
                                 setTrainingOverlay(null);
                                 setGameState('PLAYING');
-                                setTimeout(triggerNextPunch, 1500);
                             }, 2000);
                         }
                     }
@@ -316,53 +348,72 @@ const GeminiBoxingCoach: React.FC = () => {
                         predictPose(landmarks);
                     }
 
-                    // HIT LOGIC
+                    // --- REFINED HIT LOGIC ---
                     const p = activePunchRef.current;
-                    if (p && gameStateRef.current === 'PLAYING') {
+
+                    // Only check hits for flying punches
+                    if (p && gameStateRef.current === 'PLAYING' && p.status === 'flying') {
+
                         const elapsed = now - p.startTime;
+                        // PROGRESS CHECK: 0.0 = Start, 1.0 = End
                         const progress = elapsed / p.duration;
 
-                        if (progress > 1.2) {
-                            activePunchRef.current = null;
-                            setTimeout(triggerNextPunch, 300);
-                        } else if (progress >= 0.85 && p.status === 'flying') {
-                            const cal = calibrationRef.current;
-                            const move = currentPoseLabel.current;
-                            const verticalDrop = (nose.y - cal.baselineY);
+                        // HIT WINDOW: Check when punch is 80% extended
+                        if (progress > 0.8) {
+                            const cal = calibrationRef.current
+                            const move = currentPoseLabel.current
+                            const verticalDrop = (nose.y - cal.baselineY)
 
-                            let rating: DodgeRating = 'HIT';
-                            let points = -100;
+                            let rating: DodgeRating = 'HIT'
+                            let points = -100
 
                             if (p.type === 'hook') {
-                                if (verticalDrop > 0.1 && move === 'DUCK') { rating = 'CLEAN DUCK'; points = 500; }
-                                else { rating = 'HIT'; points = -100; }
+                                // Hooks require ducking
+                                if (verticalDrop > 0.1 && move === 'DUCK') {
+                                    rating = 'CLEAN DUCK'; points = 500
+                                }
                             } else {
-                                if ((p.side === 'left' && move === 'RIGHT') || (p.side === 'right' && move === 'LEFT')) {
-                                    rating = 'PERFECT'; points = 300;
+                                // Straights require dodging Left/Right
+                                if ((p.side === 'left' && move === 'RIGHT') ||
+                                    (p.side === 'right' && move === 'LEFT')) {
+                                    rating = 'PERFECT'; points = 300
                                 } else if (move === 'DUCK') {
-                                    rating = 'LUCKY DUCK'; points = 100;
-                                } else {
-                                    rating = 'HIT'; points = -100;
+                                    // Ducking a straight is okay but risky
+                                    rating = 'LUCKY DUCK'; points = 100
                                 }
                             }
 
-                            fightLogRef.current.push({ time: ROUND_TIME - timeLeft, punch: `${p.side}_${p.type}`, userMove: move, outcome: rating, scoreDelta: points });
+                            // Commit Result
+                            p.status = points < 0 ? 'hit' : 'dodged'
+                            p.rating = rating
 
-                            p.status = points < 0 ? 'hit' : 'dodged';
-                            p.rating = rating;
-                            scoreRef.current = Math.max(0, scoreRef.current + points);
-                            comboRef.current = points < 0 ? 0 : comboRef.current + 1;
-                            setScore(scoreRef.current); setCombo(comboRef.current);
+                            fightLogRef.current.push({
+                                time: ROUND_TIME - timeLeft,
+                                punch: `${p.side}_${p.type}`,
+                                userMove: move,
+                                outcome: rating,
+                                scoreDelta: points
+                            })
+
+                            scoreRef.current = Math.max(0, scoreRef.current + points)
+                            comboRef.current = points < 0 ? 0 : comboRef.current + 1
+                            setScore(scoreRef.current)
+                            setCombo(comboRef.current)
 
                             if (points < 0) {
                                 setDamageFlash(true);
                                 setTimeout(() => setDamageFlash(false), 200);
                             }
 
-                            setBonusText({ msg: rating, color: points > 0 ? 'text-blue-600' : 'text-red-600' });
-                            setTimeout(() => setBonusText(null), 800);
+                            setBonusText({ msg: rating, color: points > 0 ? 'text-blue-600' : 'text-red-600' })
+                            setTimeout(() => setBonusText(null), 800)
+
+                            // Note: We do NOT nullify activePunchRef here.
+                            // We let the animation component finish playing it visually.
+                            // The status check (p.status === 'flying') prevents double scoring.
                         }
                     }
+
                 }
             });
 
@@ -376,11 +427,11 @@ const GeminiBoxingCoach: React.FC = () => {
 
         loadPose();
         return () => { if (cameraInstance) cameraInstance.stop(); if (pose) pose.close(); };
-    }, [triggerNextPunch]);
+    }, []);
 
     return (
         <div className="w-full h-screen bg-gray-50 font-sans text-slate-900 relative select-none overflow-hidden">
-            {/* UI - Clean Modern Style */}
+            {/* UI */}
             <div className="absolute top-0 left-0 p-8 z-30 w-full flex justify-between pointer-events-none">
                 <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
                     <div className="text-slate-500 text-xs font-bold tracking-widest uppercase mb-1">Score</div>
@@ -399,7 +450,24 @@ const GeminiBoxingCoach: React.FC = () => {
                 )}
             </div>
 
-            {/* Visual Feedback - Clean Typography */}
+            {/* SPEED SLIDER UI */}
+            <div className="absolute top-8 right-8 z-50 pointer-events-auto bg-white px-6 py-4 rounded-full shadow border border-slate-200">
+                <div className="text-xs font-bold text-slate-500">GAME SPEED</div>
+                <div className="flex items-center gap-2">
+                    <input
+                        type="range"
+                        min="0.6"
+                        max="1.4"
+                        step="0.1"
+                        value={speedMultiplier}
+                        onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))}
+                        className="accent-blue-600"
+                    />
+                    <div className="text-sm font-bold w-10">{speedMultiplier.toFixed(1)}x</div>
+                </div>
+            </div>
+
+            {/* Feedback */}
             <div className="absolute inset-0 flex flex-col items-center justify-center z-30 pointer-events-none">
                 {damageFlash && <div className="absolute inset-0 bg-red-500/10 mix-blend-multiply" />}
                 {bonusText && <div className={`text-8xl font-black italic drop-shadow-sm scale-110 duration-75 ${bonusText.color}`}>{bonusText.msg}</div>}
@@ -414,7 +482,7 @@ const GeminiBoxingCoach: React.FC = () => {
                 )}
             </div>
 
-            {/* Menus - Clean White Cards */}
+            {/* Menus */}
             {gameState === 'IDLE' && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm pointer-events-auto">
                     <h1 className="text-[100px] font-black text-slate-900 mb-4 tracking-tighter">BOXING<span className="text-blue-600">AI</span></h1>
@@ -431,7 +499,7 @@ const GeminiBoxingCoach: React.FC = () => {
             )}
 
             {gameState === 'CALIBRATING_DIMENSIONS' && (
-                <div className="absolute top-16 left-24 w-full flex justify-center z-50 pointer-events-auto">
+                <div className="absolute bottom-24 left-0 w-full flex justify-center z-50 pointer-events-auto">
                     <button onClick={startAITraining} className="bg-blue-600 text-white text-2xl font-bold px-12 py-4 rounded-full hover:scale-105 transition-transform shadow-lg hover:bg-blue-700">LOCK POSITION - START TRAINING</button>
                 </div>
             )}
@@ -464,7 +532,7 @@ const GeminiBoxingCoach: React.FC = () => {
 
             {/* SCENE */}
             <div className="absolute inset-0 z-20 pointer-events-none">
-                <Canvas shadows gl={{ antialias: true, alpha: true }} camera={{ position: [-0.5, 1, 2] }}>
+                <Canvas shadows gl={{ antialias: true, alpha: true }} camera={{ position: [0, 0, 4] }}>
                     <Scene3D activePunchRef={activePunchRef} damage={damageFlash} />
                 </Canvas>
             </div>

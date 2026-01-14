@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useGLTF, useAnimations } from '@react-three/drei';
+import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { SkeletonUtils } from 'three-stdlib';
 import { LoopOnce, LoopRepeat } from 'three';
+import gsap from 'gsap';
 
 interface Punch {
     id: string;
@@ -15,169 +17,180 @@ interface Punch {
 
 interface OpponentProps {
     activePunch: Punch | null;
+    speedMultiplier: number;
 }
 
-export function Opponent({ activePunch }: OpponentProps) {
-    const [isHit, setIsHit] = useState(false);
+export function Opponent({ activePunch, speedMultiplier }: OpponentProps) {
+    const group = useRef<THREE.Group>(null);
+    const currentAction = useRef<THREE.AnimationAction | null>(null);
+    const { camera } = useThree(); // Standard way to access camera
 
     // Load GLBs
     const idleGLB = useGLTF("/models/Idle.glb");
-    const leftHookGLB = useGLTF("/models/LH.glb");
-    const rightHookGLB = useGLTF("/models/RH.glb");
-    const leftStraightGLB = useGLTF("/models/LS.glb");
-    const rightStraightGLB = useGLTF("/models/RS.glb");
+    const lsGLB = useGLTF("/models/LS.glb");
+    const rsGLB = useGLTF("/models/RS.glb");
+    const lhGLB = useGLTF("/models/LH.glb");
+    const rhGLB = useGLTF("/models/RH.glb");
 
-    // Clone base rig
-    const clone = useMemo(
-        () => SkeletonUtils.clone(idleGLB.scene),
-        [idleGLB.scene]
-    );
+    // Clone rig
+    const clone = useMemo(() => SkeletonUtils.clone(idleGLB.scene), [idleGLB.scene]);
 
-    // Merge animations
+    // Merge & Clean Animations
     const animations = useMemo(() => {
-        const clips: THREE.AnimationClip[] = [];
+        const sources = [
+            { name: 'Idle', clip: idleGLB.animations[0] },
+            { name: 'LeftStraight', clip: lsGLB.animations[0] },
+            { name: 'RightStraight', clip: rsGLB.animations[0] },
+            { name: 'LeftHook', clip: lhGLB.animations[0] },
+            { name: 'RightHook', clip: rhGLB.animations[0] }
+        ];
 
-        const loadClip = (gltf: any, name: string) => {
-            if (!gltf.animations.length) {
-                console.warn("❌ No animation in", name);
-                return;
-            }
+        return sources.map(({ name, clip }) => {
+            const c = clip.clone();
+            c.name = name;
 
-            const clip = gltf.animations[0].clone();
-            clip.name = name;
-
-            clip.tracks.forEach((track) => {
+            // 1. Fix Bone Names (Crucial for Mixamo rigs)
+            c.tracks.forEach((track) => {
                 track.name = track.name.replace('mixamorig:', 'mixamorig');
             });
 
-            clip.tracks = clip.tracks.filter(
-                (track) => !track.name.includes(".position")
-            );
+            // 2. Remove Position Tracks (Keeps opponent grounded/centered)
+            c.tracks = c.tracks.filter(track => !track.name.endsWith('.position'));
 
-            console.log(`✅ Loaded clip: ${name}, duration: ${clip.duration.toFixed(2)}s`);
-            clips.push(clip);
-        };
+            return c;
+        });
+    }, [idleGLB, lsGLB, rsGLB, lhGLB, rhGLB]);
 
-        loadClip(idleGLB, "Idle");
-        loadClip(leftHookGLB, "LeftHook");
-        loadClip(rightHookGLB, "RightHook");
-        loadClip(leftStraightGLB, "LeftStraight");
-        loadClip(rightStraightGLB, "RightStraight");
+    const { actions } = useAnimations(animations, group);
 
-        return clips;
-    }, [idleGLB, leftHookGLB, rightHookGLB, leftStraightGLB, rightStraightGLB]);
-
-    // Bind animations to skeleton
-    const { actions } = useAnimations(animations, clone);
-
-    // Log bound actions once
+    // Start Idle
     useEffect(() => {
-        console.log("🎬 Bound Actions:", Object.keys(actions));
-    }, [actions]);
-
-    // Start idle
-    useEffect(() => {
-        const idle = actions["Idle"];
+        const idle = actions['Idle'];
         if (!idle) return;
 
-        console.log("🧍 Idle started");
+        console.log('🧍 Idle started');
         idle.setLoop(LoopRepeat, Infinity);
         idle.reset().fadeIn(0.3).play();
+        currentAction.current = idle;
 
-        return () => idle.fadeOut(0.2);
+        return () => { idle.fadeOut(0.2); };
     }, [actions]);
 
-    // React to punch events
+    // Handle Punch Trigger
     useEffect(() => {
         if (!activePunch) return;
 
         const actionName =
-            activePunch.type === "hook"
-                ? (activePunch.side === "left" ? "LeftHook" : "RightHook")
-                : (activePunch.side === "left" ? "LeftStraight" : "RightStraight");
+            activePunch.type === 'hook'
+                ? activePunch.side === 'left' ? 'LeftHook' : 'RightHook'
+                : activePunch.side === 'left' ? 'LeftStraight' : 'RightStraight';
 
-        const punchAction = actions[actionName];
-        const idleAction = actions["Idle"];
+        const punch = actions[actionName];
+        const idle = actions['Idle'];
 
-        if (!punchAction || !idleAction) {
-            console.warn("❌ Missing action", actionName);
-            return;
+        if (!punch || !idle) return;
+
+        console.log('🥊 Punch Triggered:', actionName);
+
+        // --- SPEED & TIMING CALCULATION ---
+        const clipDuration = punch.getClip().duration;
+
+        // If the game provided a duration (from GeminiBoxingCoach), use it to calc scale.
+        // Otherwise, fall back to speedMultiplier directly.
+        let appliedTimeScale = speedMultiplier;
+
+        if (activePunch.duration > 0) {
+            const gameDurationSec = activePunch.duration / 1000;
+            // Calculate exact speed needed to finish within game window
+            appliedTimeScale = clipDuration / gameDurationSec;
+            // Safety Clamp (0.5x to 3.0x)
+            appliedTimeScale = THREE.MathUtils.clamp(appliedTimeScale, 0.5, 3.0);
         }
 
-        console.log(`🥊 TRIGGER: ${actionName}`);
-        console.log("📦 Punch data:", activePunch);
+        punch.timeScale = appliedTimeScale;
 
-        // Hit flash
-        setIsHit(true);
-        setTimeout(() => setIsHit(false), 150);
+        // --- ANIMATION BLENDING ---
+        const previous = currentAction.current || idle;
+        previous.fadeOut(0.2);
 
-        // Timescale sync
-        const clipDuration = punchAction.getClip().duration;
-        const gameDurationSec = activePunch.duration / 1000;
-        const speed = THREE.MathUtils.clamp(clipDuration / gameDurationSec, 0.8, 1.4);
-        punchAction.timeScale = speed;
+        punch.reset();
+        punch.setLoop(LoopOnce, 1);
+        punch.clampWhenFinished = true;
+        punch.fadeIn(0.2).play();
+        currentAction.current = punch;
 
-        console.log(`⏱ ClipDuration=${clipDuration.toFixed(2)}s GameDuration=${gameDurationSec.toFixed(2)}s TimeScale=${speed.toFixed(2)}`);
+        // --- GSAP CAMERA IMPACT (The "Impressive" Feel) ---
+        // Push in slightly when punch starts
+        // const initialZ = 2.2; // Based on your Scene3D camera setup
+        // gsap.killTweensOf(camera.position); // Stop any running moves
+        // gsap.to(camera.position, {
+        //     z: initialZ - 0.4, // Move closer by 0.4m
+        //     duration: 0.2,     // Fast zoom in
+        //     ease: "power2.out"
+        // });
 
-        // Crossfade
-        idleAction.fadeOut(0.25);
-        punchAction.setLoop(LoopOnce, 1);
-        punchAction.clampWhenFinished = true;
-        punchAction.reset().fadeIn(0.25).play();
+        // --- CLEANUP / RETURN TO IDLE ---
+        // We use setTimeout based on the *Game Duration* to ensure logic sync
+        const cleanupTime = activePunch.duration > 0
+            ? activePunch.duration
+            : (clipDuration / appliedTimeScale) * 1000;
 
-        console.log(`▶️ Playing ${actionName}`);
-
-        // Return to idle
         const timer = setTimeout(() => {
-            console.log(`↩️ Returning to Idle from ${actionName}`);
-            punchAction.fadeOut(0.25);
-            idleAction.reset().fadeIn(0.25).play();
-        }, activePunch.duration + 150);
+            console.log('✅ Punch finished — returning to idle');
+
+            // 1. Blend Animations
+            punch.fadeOut(0.3);
+            idle.reset().fadeIn(0.3).play();
+            currentAction.current = idle;
+
+            // // 2. Reset Camera
+            // gsap.to(camera.position, {
+            //     z: initialZ,
+            //     duration: 0.5,
+            //     ease: "elastic.out(1, 0.75)" // Bouncy return
+            // });
+
+        }, cleanupTime);
 
         return () => clearTimeout(timer);
-    }, [activePunch?.id, actions]);
 
-    // Materials (no recreation)
+    }, [activePunch?.id, actions, camera, speedMultiplier]);
+
+    // Materials (Clean Look - No Flash)
     useEffect(() => {
-        const hitColor = new THREE.Color("#ff0000");
-        const normalColor = new THREE.Color("#00ffff");
-        const hitEmissive = new THREE.Color("#ff0000");
-        const normalEmissive = new THREE.Color("#0044aa");
+        clone.traverse(obj => {
+            if (!(obj as THREE.Mesh).isMesh) return;
+            const mesh = obj as THREE.Mesh;
 
-        clone.traverse((child) => {
-            if (!(child as THREE.Mesh).isMesh) return;
-            const mesh = child as THREE.Mesh;
-
-            if (!mesh.material || Array.isArray(mesh.material)) {
-                mesh.material = new THREE.MeshStandardMaterial();
+            // Apply materials only once or update props
+            if (!mesh.userData.init) {
+                mesh.material = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color('#00aaff'), // Clean Cyber Blue
+                    emissive: new THREE.Color('#0044aa'),
+                    emissiveIntensity: 0.5,
+                    roughness: 0.2,
+                    metalness: 0.8,
+                    toneMapped: false
+                });
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.userData.init = true;
             }
-
-            const mat = mesh.material as THREE.MeshStandardMaterial;
-            mat.roughness = 0.15;
-            mat.metalness = 0.85;
-            mat.toneMapped = false;
-
-            mat.color = isHit ? hitColor : normalColor;
-            mat.emissive = isHit ? hitEmissive : normalEmissive;
-            mat.emissiveIntensity = isHit ? 2.0 : 1.3;
-
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            mesh.frustumCulled = false;
         });
-    }, [clone, isHit]);
+    }, [clone]);
 
-    // Final render (rotation applied correctly here)
     return (
-        <group position={[0, -0.1, 0]} scale={2} rotation={[0, Math.PI / 6, 0]}>
+        // Position: -0.9 puts feet on floor (assuming 1.8m height centered at 0)
+        // Scale: 1 (Assuming models are already correct scale, otherwise use 0.01)
+        <group ref={group} position={[0, 0, 0]} scale={1} rotation={[0, Math.PI / 8, 0]}>
             <primitive object={clone} />
         </group>
     );
 }
 
 // Preloads
-useGLTF.preload("/models/Idle.glb");
-useGLTF.preload("/models/LH.glb");
-useGLTF.preload("/models/RH.glb");
-useGLTF.preload("/models/LS.glb");
-useGLTF.preload("/models/RS.glb");
+useGLTF.preload('/models/Idle.glb');
+useGLTF.preload('/models/LS.glb');
+useGLTF.preload('/models/RS.glb');
+useGLTF.preload('/models/LH.glb');
+useGLTF.preload('/models/RH.glb');
