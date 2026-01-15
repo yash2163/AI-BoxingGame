@@ -359,7 +359,7 @@ const GeminiBoxingCoach: React.FC = () => {
                         const progress = elapsed / p.duration;
 
                         // HIT WINDOW: Check when punch is 80% extended
-                        if (progress > 0.8) {
+                        if (progress > 0.6 && progress < 0.8) {
                             const cal = calibrationRef.current
                             const move = currentPoseLabel.current
                             const verticalDrop = (nose.y - cal.baselineY)

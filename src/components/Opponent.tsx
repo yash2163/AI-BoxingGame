@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { useGLTF, useAnimations } from '@react-three/drei';
-import { useThree } from '@react-three/fiber';
+import React, { useEffect, useRef, useState } from 'react';
+import { useAnimations } from '@react-three/drei';
+import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { SkeletonUtils } from 'three-stdlib';
 import { LoopOnce, LoopRepeat } from 'three';
 import gsap from 'gsap';
+import { useBoxingAssets } from '../hooks/useBoxingAssets'; // Import new hook
 
 interface Punch {
     id: string;
@@ -18,179 +18,133 @@ interface Punch {
 interface OpponentProps {
     activePunch: Punch | null;
     speedMultiplier: number;
+    showDebug?: boolean; // Toggle to see hitboxes
 }
 
-export function Opponent({ activePunch, speedMultiplier }: OpponentProps) {
+export function Opponent({ activePunch, speedMultiplier, showDebug = false }: OpponentProps) {
     const group = useRef<THREE.Group>(null);
-    const currentAction = useRef<THREE.AnimationAction | null>(null);
-    const { camera } = useThree(); // Standard way to access camera
-
-    // Load GLBs
-    const idleGLB = useGLTF("/models/Idle.glb");
-    const lsGLB = useGLTF("/models/LS.glb");
-    const rsGLB = useGLTF("/models/RS.glb");
-    const lhGLB = useGLTF("/models/LH.glb");
-    const rhGLB = useGLTF("/models/RH.glb");
-
-    // Clone rig
-    const clone = useMemo(() => SkeletonUtils.clone(idleGLB.scene), [idleGLB.scene]);
-
-    // Merge & Clean Animations
-    const animations = useMemo(() => {
-        const sources = [
-            { name: 'Idle', clip: idleGLB.animations[0] },
-            { name: 'LeftStraight', clip: lsGLB.animations[0] },
-            { name: 'RightStraight', clip: rsGLB.animations[0] },
-            { name: 'LeftHook', clip: lhGLB.animations[0] },
-            { name: 'RightHook', clip: rhGLB.animations[0] }
-        ];
-
-        return sources.map(({ name, clip }) => {
-            const c = clip.clone();
-            c.name = name;
-
-            // 1. Fix Bone Names (Crucial for Mixamo rigs)
-            c.tracks.forEach((track) => {
-                track.name = track.name.replace('mixamorig:', 'mixamorig');
-            });
-
-            // 2. Remove Position Tracks (Keeps opponent grounded/centered)
-            c.tracks = c.tracks.filter(track => !track.name.endsWith('.position'));
-
-            return c;
-        });
-    }, [idleGLB, lsGLB, rsGLB, lhGLB, rhGLB]);
-
+    const { scene, animations } = useBoxingAssets(); // Optimized Load
     const { actions } = useAnimations(animations, group);
+    const { camera } = useThree();
 
-    // Start Idle
+    const currentAction = useRef<THREE.AnimationAction | null>(null);
+    const [debugColor, setDebugColor] = useState('#00ff00'); // Green = Safe, Red = Active Hit Window
+
+    // --- SETUP IDLE ---
     useEffect(() => {
         const idle = actions['Idle'];
-        if (!idle) return;
-
-        console.log('🧍 Idle started');
-        idle.setLoop(LoopRepeat, Infinity);
-        idle.reset().fadeIn(0.3).play();
-        currentAction.current = idle;
-
-        return () => { idle.fadeOut(0.2); };
+        if (idle) {
+            idle.setLoop(LoopRepeat, Infinity);
+            idle.reset().fadeIn(0.5).play();
+            currentAction.current = idle;
+        }
     }, [actions]);
 
-    // Handle Punch Trigger
+    // --- PUNCH LOGIC ---
     useEffect(() => {
         if (!activePunch) return;
 
-        const actionName =
-            activePunch.type === 'hook'
-                ? activePunch.side === 'left' ? 'LeftHook' : 'RightHook'
-                : activePunch.side === 'left' ? 'LeftStraight' : 'RightStraight';
+        const actionName = activePunch.type === 'hook'
+            ? activePunch.side === 'left' ? 'LeftHook' : 'RightHook'
+            : activePunch.side === 'left' ? 'LeftStraight' : 'RightStraight';
 
         const punch = actions[actionName];
         const idle = actions['Idle'];
 
         if (!punch || !idle) return;
 
-        console.log('🥊 Punch Triggered:', actionName);
-
-        // --- SPEED & TIMING CALCULATION ---
+        // 1. Calculate Speed
         const clipDuration = punch.getClip().duration;
-
-        // If the game provided a duration (from GeminiBoxingCoach), use it to calc scale.
-        // Otherwise, fall back to speedMultiplier directly.
         let appliedTimeScale = speedMultiplier;
 
         if (activePunch.duration > 0) {
             const gameDurationSec = activePunch.duration / 1000;
-            // Calculate exact speed needed to finish within game window
             appliedTimeScale = clipDuration / gameDurationSec;
-            // Safety Clamp (0.5x to 3.0x)
+            // Clamp to sane limits (0.5x to 3.0x)
             appliedTimeScale = THREE.MathUtils.clamp(appliedTimeScale, 0.5, 3.0);
         }
 
         punch.timeScale = appliedTimeScale;
 
-        // --- ANIMATION BLENDING ---
+        // 2. Play Animation
         const previous = currentAction.current || idle;
-        previous.fadeOut(0.2);
+        previous.fadeOut(0.15); // Fast blend for snap
 
-        punch.reset();
-        punch.setLoop(LoopOnce, 1);
+        punch.reset().setLoop(LoopOnce, 1);
         punch.clampWhenFinished = true;
-        punch.fadeIn(0.2).play();
+        punch.fadeIn(0.15).play();
         currentAction.current = punch;
 
-        // --- GSAP CAMERA IMPACT (The "Impressive" Feel) ---
-        // Push in slightly when punch starts
-        // const initialZ = 2.2; // Based on your Scene3D camera setup
-        // gsap.killTweensOf(camera.position); // Stop any running moves
+        // 3. Camera Impact (Juice)
+        // const initialZ = 2.2;
+        // gsap.killTweensOf(camera.position);
         // gsap.to(camera.position, {
-        //     z: initialZ - 0.4, // Move closer by 0.4m
-        //     duration: 0.2,     // Fast zoom in
+        //     z: initialZ - 0.4,
+        //     duration: 0.2,
         //     ease: "power2.out"
         // });
 
-        // --- CLEANUP / RETURN TO IDLE ---
-        // We use setTimeout based on the *Game Duration* to ensure logic sync
+        // 4. Return to Idle
         const cleanupTime = activePunch.duration > 0
             ? activePunch.duration
             : (clipDuration / appliedTimeScale) * 1000;
 
         const timer = setTimeout(() => {
-            console.log('✅ Punch finished — returning to idle');
-
-            // 1. Blend Animations
             punch.fadeOut(0.3);
             idle.reset().fadeIn(0.3).play();
             currentAction.current = idle;
 
-            // // 2. Reset Camera
             // gsap.to(camera.position, {
             //     z: initialZ,
             //     duration: 0.5,
-            //     ease: "elastic.out(1, 0.75)" // Bouncy return
+            //     ease: "elastic.out(1, 0.75)"
             // });
-
         }, cleanupTime);
 
         return () => clearTimeout(timer);
 
     }, [activePunch?.id, actions, camera, speedMultiplier]);
 
-    // Materials (Clean Look - No Flash)
-    useEffect(() => {
-        clone.traverse(obj => {
-            if (!(obj as THREE.Mesh).isMesh) return;
-            const mesh = obj as THREE.Mesh;
+    // --- DEBUG VISUALIZER ---
+    // Changes color of the fist when inside the "Hit Window" (40% - 60% of punch)
+    useFrame(() => {
+        if (!showDebug || !activePunch) {
+            if (debugColor !== '#00ff00') setDebugColor('#00ff00');
+            return;
+        }
 
-            // Apply materials only once or update props
-            if (!mesh.userData.init) {
-                mesh.material = new THREE.MeshStandardMaterial({
-                    color: new THREE.Color('#00aaff'), // Clean Cyber Blue
-                    emissive: new THREE.Color('#0044aa'),
-                    emissiveIntensity: 0.5,
-                    roughness: 0.2,
-                    metalness: 0.8,
-                    toneMapped: false
-                });
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                mesh.userData.init = true;
-            }
-        });
-    }, [clone]);
+        const elapsed = performance.now() - activePunch.startTime;
+        const progress = elapsed / activePunch.duration;
+
+        // VISUAL SYNC CHECK:
+        // Most punches connect at 40-60% extension. 
+        // If the sphere turns RED when the arm is fully extended, your logic is synced.
+        // If it turns red while retracting, we need to lower the hit threshold in Game Logic.
+        if (progress > 0.4 && progress < 0.7) {
+            if (debugColor !== '#ff0000') setDebugColor('#ff0000');
+        } else {
+            if (debugColor !== '#00ff00') setDebugColor('#00ff00');
+        }
+    });
 
     return (
-        // Position: -0.9 puts feet on floor (assuming 1.8m height centered at 0)
-        // Scale: 1 (Assuming models are already correct scale, otherwise use 0.01)
-        <group ref={group} position={[0, 0, 0]} scale={1} rotation={[0, Math.PI / 8, 0]}>
-            <primitive object={clone} />
+        <group ref={group} position={[0, 0, 0]} scale={1} >
+            <primitive object={scene} />
+
+            {/* DEBUG SPHERES ON HANDS */}
+            {showDebug && (
+                <>
+                    {/* Attach to hand bones roughly (Visual approximation) */}
+                    <mesh position={[0, 0, 0]}>
+                        <sphereGeometry args={[0.1]} />
+                        <meshBasicMaterial color={debugColor} wireframe />
+                    </mesh>
+                    <mesh position={[0, 0, 0]}>
+                        <sphereGeometry args={[0.1]} />
+                        <meshBasicMaterial color={debugColor} wireframe />
+                    </mesh>
+                </>
+            )}
         </group>
     );
 }
-
-// Preloads
-useGLTF.preload('/models/Idle.glb');
-useGLTF.preload('/models/LS.glb');
-useGLTF.preload('/models/RS.glb');
-useGLTF.preload('/models/LH.glb');
-useGLTF.preload('/models/RH.glb');
