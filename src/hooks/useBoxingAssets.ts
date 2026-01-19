@@ -2,8 +2,9 @@ import { useGLTF } from '@react-three/drei';
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { SkeletonUtils } from 'three-stdlib';
+import type { PunchProfile } from '../types';
 
-// Preload immediately to ensure they are in cache
+// Preload to avoid hiccups
 useGLTF.preload("/models/Idle.glb");
 useGLTF.preload("/models/LS.glb");
 useGLTF.preload("/models/RS.glb");
@@ -17,45 +18,59 @@ export function useBoxingAssets() {
     const lhGLB = useGLTF("/models/LH.glb");
     const rhGLB = useGLTF("/models/RH.glb");
 
-    // 1. Process Geometry ONCE (Clone the idle rig)
+    // 1. Process Geometry (One time clone)
     const baseScene = useMemo(() => {
         const clone = SkeletonUtils.clone(idleGLB.scene);
-        // Optimize: Traverse and set shadows/materials once here
         clone.traverse((child) => {
             if ((child as THREE.Mesh).isMesh) {
                 const mesh = child as THREE.Mesh;
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
-                mesh.frustumCulled = false; // Prevent flickering at edges
+                mesh.frustumCulled = false;
             }
         });
         return clone;
     }, [idleGLB.scene]);
 
-    // 2. Process Animations ONCE (Clean tracks, fix names)
-    const animations = useMemo(() => {
+    // 2. Process Animations & Build Profiles
+    const { animations, punchProfiles } = useMemo(() => {
         const sources = [
-            { name: 'Idle', clip: idleGLB.animations[0] },
-            { name: 'LeftStraight', clip: lsGLB.animations[0] },
-            { name: 'RightStraight', clip: rsGLB.animations[0] },
-            { name: 'LeftHook', clip: lhGLB.animations[0] },
-            { name: 'RightHook', clip: rhGLB.animations[0] }
+            { name: 'Idle', clip: idleGLB.animations[0], type: 'idle' },
+            { name: 'LeftStraight', clip: lsGLB.animations[0], type: 'straight' },
+            { name: 'RightStraight', clip: rsGLB.animations[0], type: 'straight' },
+            { name: 'LeftHook', clip: lhGLB.animations[0], type: 'hook' },
+            { name: 'RightHook', clip: rhGLB.animations[0], type: 'hook' }
         ];
 
-        return sources.map(({ name, clip }) => {
-            if (!clip) return null;
+        const clips: THREE.AnimationClip[] = [];
+        const profiles: Record<string, PunchProfile> = {};
+
+        sources.forEach(({ name, clip, type }) => {
+            if (!clip) return;
             const c = clip.clone();
             c.name = name;
 
-            // Critical Fix: Mixamo Naming & Root Motion
-            c.tracks.forEach((track) => {
-                track.name = track.name.replace('mixamorig:', 'mixamorig');
-            });
+            // Clean Tracks
+            c.tracks.forEach((track) => track.name = track.name.replace('mixamorig:', 'mixamorig'));
             c.tracks = c.tracks.filter(track => !track.name.endsWith('.position'));
 
-            return c;
-        }).filter(Boolean) as THREE.AnimationClip[];
+            clips.push(c);
+
+            // AUTO-PROFILE: Measure the clip
+            // We set standard impact points based on animation type.
+            // Straight punches usually land slightly earlier (45%) than Hooks (55%).
+            if (name !== 'Idle') {
+                profiles[name] = {
+                    animName: name,
+                    duration: c.duration, // Actual seconds from the file
+                    impactPoint: type === 'straight' ? 0.45 : 0.55,
+                    damage: 10
+                };
+            }
+        });
+
+        return { animations: clips, punchProfiles: profiles };
     }, [idleGLB, lsGLB, rsGLB, lhGLB, rhGLB]);
 
-    return { scene: baseScene, animations };
+    return { scene: baseScene, animations, punchProfiles };
 }
