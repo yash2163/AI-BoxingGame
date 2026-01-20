@@ -37,6 +37,8 @@ export const analyzeUserPose = (landmarks: any[], calibration: CalibrationData):
     return { label, leanRatio, duckRatio };
 };
 
+import { OVAL_ZONES } from './OvalConfig';
+
 /**
  * THE JUDGE: Determines hit/miss based on Elliptical Zones
  */
@@ -45,44 +47,40 @@ export const judgeImpact = (
     punchSide: PunchSide,
     pose: HeuristicPoseResult
 ): DodgeRating => {
+    const { leanRatio: x, duckRatio: y } = pose;
 
-    // --- LOGIC 1: STRAIGHTS (Horizontal Oval) ---
-    if (punchType === 'straight') {
-        const x = pose.leanRatio;
+    // 1. Select Config
+    const config = punchType === 'straight' ? OVAL_ZONES.STRAIGHT : OVAL_ZONES.HOOK;
 
-        // Target Direction:
-        // Left Punch -> User must slip RIGHT (Negative X on screen)
-        // Right Punch -> User must slip LEFT (Positive X on screen)
-        // (Assuming Mirrored Display)
-        const isCorrectDirection = (punchSide === 'left' && x < 0) || (punchSide === 'right' && x > 0);
+    // 2. Calculate Ellipse Distance (Normalized)
+    // Formula: (x/rx)^2 + (y/ry)^2
+    // d < 1 : Inside Inner (Hit)
+    // d < 1 (for outer) : Inside Outer
 
-        const absX = Math.abs(x);
+    // We check against Inner first
+    const innerDist = Math.pow(x / config.inner.rx, 2) + Math.pow(y / config.inner.ry, 2);
 
-        // Zone 1: Hit (Still in center)
-        if (absX < 0.20) return 'HIT';
+    // HIT CHECK (Inside Inner)
+    if (innerDist < 1.0) {
+        if (punchType === 'straight') return 'NOT_FAR_ENOUGH';
+        if (punchType === 'hook') return 'NOT_DEEP_ENOUGH';
+        return 'HIT';
+    }
 
-        // Zone 2: Perfect Slip
-        if (absX >= 0.20 && absX <= 0.50) {
-            return isCorrectDirection ? 'PERFECT' : 'HIT'; // Wrong way = Hit
+    // PERFECT CHECK (Must be inside Outer but outside Inner)
+    const outerDist = Math.pow(x / config.outer.rx, 2) + Math.pow(y / config.outer.ry, 2);
+
+    if (outerDist < 1.0) {
+        // We are safe! But did we move in the WRONG direction?
+        // Straights: Must slip opposite
+        if (punchType === 'straight') {
+            const isCorrectDirection = (punchSide === 'left' && x < 0) || (punchSide === 'right' && x > 0);
+            if (!isCorrectDirection) return 'RISKY'; // Safe, but wrong way
         }
-
-        // Zone 3: Too Far (Off balance)
-        if (absX > 0.50) return 'TOO_FAR';
+        return 'PERFECT';
     }
 
-    // --- LOGIC 2: HOOKS (Vertical Oval) ---
-    if (punchType === 'hook') {
-        const y = pose.duckRatio; // Positive is Down
-
-        // Zone 1: Hit (Standing tall)
-        if (y < 0.20) return 'HIT';
-
-        // Zone 2: Clean Duck
-        if (y >= 0.20 && y <= 0.60) return 'PERFECT';
-
-        // Zone 3: Too Low (Squatting)
-        if (y > 0.60) return 'TOO_FAR';
-    }
-
-    return 'HIT'; // Default Fallback
+    // TOO FAR CHECK
+    if (punchType === 'hook') return 'TOO_LOW';
+    return 'TOO_FAR';
 };

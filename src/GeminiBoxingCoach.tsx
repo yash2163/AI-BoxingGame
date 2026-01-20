@@ -17,6 +17,7 @@ import { TrainingUI } from './components/ui/TrainingUI';
 import { GameHUD } from './components/ui/GameHUD';
 import { MainMenu } from './components/ui/MainMenu';
 import { GameOverScreen } from './components/ui/GameOverScreen';
+import { HitZoneVisualizer } from './components/ui/HitZoneVisualizer';
 
 const GeminiBoxingCoach: React.FC = () => {
     // 1. HARDWARE & LOGIC REFS
@@ -30,6 +31,7 @@ const GeminiBoxingCoach: React.FC = () => {
     // 2. STATE
     const [gameState, setGameState] = useState<GameState>('IDLE');
     const [currentPoseLabel, setCurrentPoseLabel] = useState<string>("NEUTRAL");
+    const [headPos, setHeadPos] = useState({ x: 0, y: 0 }); // Visualizer State
     const [aiFeedback, setAiFeedback] = useState<string>("");
 
     // 3. HOOKS
@@ -124,6 +126,8 @@ const GeminiBoxingCoach: React.FC = () => {
             if (result && result.window && result.features) {
                 const poseLabel = classifierRef.current.predict(result.window);
                 setCurrentPoseLabel(poseLabel);
+                // Update Head Pos for UI (Feature 0=dx, 1=dy)
+                setHeadPos({ x: result.features[0], y: result.features[1] });
                 game.processGameFrame(poseLabel, result.features, now);
             }
         }
@@ -204,6 +208,13 @@ const GeminiBoxingCoach: React.FC = () => {
             </div>
 
             {/* UI LAYERS */}
+            {gameState === 'PLAYING' && (
+                <HitZoneVisualizer
+                    punchType={game.activePunchRef.current?.type || null}
+                    headPos={headPos}
+                />
+            )}
+
             {gameState === 'IDLE' && (
                 <MainMenu
                     cameraReady={isCameraReady}
@@ -218,7 +229,18 @@ const GeminiBoxingCoach: React.FC = () => {
             )}
 
             {gameState === 'TRAINING_AI' && (
-                <TrainingUI gameState={gameState} overlayState={trainer.overlayState} />
+                <>
+                    <HitZoneVisualizer
+                        // Map Training Step to Visual Config
+                        punchType={
+                            trainer.currentStepId === 'LEFT' || trainer.currentStepId === 'RIGHT' ? 'straight' :
+                                trainer.currentStepId === 'DUCK' ? 'hook' :
+                                    null
+                        }
+                        headPos={headPos}
+                    />
+                    <TrainingUI gameState={gameState} overlayState={trainer.overlayState} />
+                </>
             )}
 
             {gameState === 'PLAYING' && (

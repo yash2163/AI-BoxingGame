@@ -122,6 +122,7 @@ export const useAITrainer = ({
         startTraining,
         processFrame,
         overlayState,
-        isActive: isActiveRef.current // Exposed effectively by overlayState being non-null usually, but good to have explicit.
+        currentStepId: TRAINING_STEPS[trainingStepIndex.current]?.id, // Expose current Step ID (NEUTRAL, LEFT, etc)
+        isActive: isActiveRef.current
     };
 };

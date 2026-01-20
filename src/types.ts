@@ -21,6 +21,9 @@ export type DodgeRating =
     | 'RISKY'
     | 'LUCKY'
     | 'TOO_FAR'
+    | 'TOO_LOW'
+    | 'NOT_FAR_ENOUGH'
+    | 'NOT_DEEP_ENOUGH'
     | 'CAMPING';
 
 export type PoseClass = 'NEUTRAL' | 'LEFT' | 'RIGHT' | 'DUCK';
