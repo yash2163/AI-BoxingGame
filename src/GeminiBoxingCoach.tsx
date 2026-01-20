@@ -19,6 +19,9 @@ import { MainMenu } from './components/ui/MainMenu';
 import { GameOverScreen } from './components/ui/GameOverScreen';
 import { HitZoneVisualizer } from './components/ui/HitZoneVisualizer';
 
+// Utils
+import { drawSkeleton } from './logic/drawingUtils';
+
 const GeminiBoxingCoach: React.FC = () => {
     // 1. HARDWARE & LOGIC REFS
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -79,6 +82,12 @@ const GeminiBoxingCoach: React.FC = () => {
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
         ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+        // Draw Skeleton Overlay
+        if (results.poseLandmarks) {
+            drawSkeleton(ctx, results.poseLandmarks);
+        }
+
         ctx.restore();
 
         if (!results.poseLandmarks) return;
@@ -199,7 +208,12 @@ const GeminiBoxingCoach: React.FC = () => {
         <div className="w-full h-screen bg-gray-900 text-white overflow-hidden relative">
 
             {/* 3D SCENE */}
-            <Scene3D activePunchRef={game.activePunchRef} speedMultiplier={game.speedMultiplier} />
+            <Scene3D
+                activePunchRef={game.activePunchRef}
+                speedMultiplier={game.speedMultiplier}
+                showOpponent={gameState === 'PLAYING'}
+                showRing={gameState === 'PLAYING'}
+            />
 
             {/* VIDEO BG */}
             <div ref={containerRef} className="absolute inset-0 z-0 w-full h-full">

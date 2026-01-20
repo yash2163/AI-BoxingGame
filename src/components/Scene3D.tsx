@@ -16,9 +16,11 @@ const BoxingRing = () => (
 interface Props {
     activePunchRef: React.RefObject<ActivePunch | null>;
     speedMultiplier: number;
+    showOpponent?: boolean;
+    showRing?: boolean;
 }
 
-const SceneContent: React.FC<Props> = ({ activePunchRef, speedMultiplier }) => {
+const SceneContent: React.FC<Props> = ({ activePunchRef, speedMultiplier, showOpponent = true, showRing = true }) => {
     const [punchData, setPunchData] = useState<ActivePunch | null>(null);
     const lastPunchId = useRef<string>("");
 
@@ -36,11 +38,13 @@ const SceneContent: React.FC<Props> = ({ activePunchRef, speedMultiplier }) => {
             <directionalLight position={[2, 5, 2]} intensity={1.5} castShadow />
             <PerspectiveCamera makeDefault position={[0, 1.3, 2.2]} fov={70} />
 
-            <BoxingRing />
-            <Opponent activePunch={punchData} speedMultiplier={speedMultiplier} showDebug={false} />
-            <Circle args={[10]} rotation-x={-Math.PI / 2} receiveShadow>
-                <meshStandardMaterial color="#222" transparent opacity={0.8} />
-            </Circle>
+            {showRing && <BoxingRing />}
+            {showOpponent && <Opponent activePunch={punchData} speedMultiplier={speedMultiplier} showDebug={false} />}
+            {showRing && (
+                <Circle args={[10]} rotation-x={-Math.PI / 2} receiveShadow>
+                    <meshStandardMaterial color="#222" transparent opacity={0.8} />
+                </Circle>
+            )}
         </>
     );
 };
