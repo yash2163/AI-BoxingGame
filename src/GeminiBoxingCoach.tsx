@@ -213,6 +213,7 @@ const GeminiBoxingCoach: React.FC = () => {
                 speedMultiplier={game.speedMultiplier}
                 showOpponent={gameState === 'PLAYING'}
                 showRing={gameState === 'PLAYING'}
+                headPos={headPos}
             />
 
             {/* VIDEO BG */}

@@ -19,9 +19,10 @@ interface OpponentProps {
     activePunch: ActivePunch | null; // Strict Type
     speedMultiplier: number;
     showDebug?: boolean;
+    headPos?: { x: number; y: number };
 }
 
-export function Opponent({ activePunch, speedMultiplier: _speed, showDebug = true }: OpponentProps) {
+export function Opponent({ activePunch, speedMultiplier: _speed, showDebug = true, headPos }: OpponentProps) {
     const group = useRef<THREE.Group>(null);
     const { scene, animations } = useBoxingAssets();
     const { actions } = useAnimations(animations, group);
@@ -29,6 +30,19 @@ export function Opponent({ activePunch, speedMultiplier: _speed, showDebug = tru
 
     const currentAction = useRef<THREE.AnimationAction | null>(null);
     const [debugColor, setDebugColor] = useState('#00ff00');
+
+    // Bone Reference
+    const headBone = useRef<THREE.Bone | null>(null);
+
+    // 0. Find Head Bone
+    useEffect(() => {
+        if (!scene) return;
+        scene.traverse((child) => {
+            if (child.type === 'Bone' && (child.name === 'Head' || child.name === 'mixamorigHead')) {
+                headBone.current = child as THREE.Bone;
+            }
+        });
+    }, [scene]);
 
     // 1. Initial Idle State
     useEffect(() => {
@@ -88,9 +102,23 @@ export function Opponent({ activePunch, speedMultiplier: _speed, showDebug = tru
 
     }, [activePunch?.id, actions, camera]); // Only re-run if Punch ID changes
 
-    // --- VISUAL DEBUGGER ---
-    // Helps you see if the logic matches the visual
+    // --- VISUAL DEBUGGER + HEAD TRACKING ---
     useFrame(() => {
+        // A. Head Tracking
+        if (headBone.current && headPos) {
+            // headPos.x is roughly -0.5 (left) to 0.5 (right) based on logic/FeatureExtractor often centering it
+            // Adjust sensitivity/range as needed.
+
+            // Look Target (Invert X because camera is mirrored/webcam)
+            const targetX = -headPos.x * 1.0;
+            const targetY = -headPos.y * 0.5; // Look up/down slightly
+
+            // Smooth Interpolation
+            headBone.current.rotation.y = THREE.MathUtils.lerp(headBone.current.rotation.y, targetX, 0.1);
+            headBone.current.rotation.x = THREE.MathUtils.lerp(headBone.current.rotation.x, targetY, 0.1);
+        }
+
+        // B. Debug Visuals
         if (!showDebug || !activePunch) return;
 
         const elapsed = performance.now() - activePunch.startTime;

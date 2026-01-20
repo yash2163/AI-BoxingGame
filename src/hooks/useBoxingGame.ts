@@ -5,6 +5,7 @@ import type {
     PunchSide, PunchType, ActivePunch, FightEvent,
     DodgeRating, GameState, PoseClass, PoseFeatures
 } from '../types';
+import { soundManager } from '../logic/SoundManager';
 
 const ROUND_TIME = 60;
 
@@ -64,7 +65,13 @@ export const useBoxingGame = ({ onGameOver }: UseBoxingGameProps) => {
             setScore(s => Math.max(0, s + points));
             setBonusText({ msg: rating, color });
             setTimeout(() => setBonusText(null), 1000);
-            if (points > 0) setCombo(c => c + 1); else setCombo(0);
+            if (points > 0) {
+                setCombo(c => c + 1);
+                soundManager.playDodge(); // Sound
+            } else {
+                setCombo(0);
+                soundManager.playHit(); // Sound
+            }
 
             fightLogRef.current.push({
                 time: ROUND_TIME - timeLeftRef.current,
@@ -109,6 +116,9 @@ export const useBoxingGame = ({ onGameOver }: UseBoxingGameProps) => {
                 duration: duration,
                 status: 'flying'
             };
+
+            // Play Whoosh
+            soundManager.playWhoosh();
 
             // Recursive call for next punch
             timerRef.current = window.setTimeout(scheduleNextPunch, duration + 200);

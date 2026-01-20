@@ -18,9 +18,10 @@ interface Props {
     speedMultiplier: number;
     showOpponent?: boolean;
     showRing?: boolean;
+    headPos?: { x: number; y: number };
 }
 
-const SceneContent: React.FC<Props> = ({ activePunchRef, speedMultiplier, showOpponent = true, showRing = true }) => {
+const SceneContent: React.FC<Props> = ({ activePunchRef, speedMultiplier, showOpponent = true, showRing = true, headPos }) => {
     const [punchData, setPunchData] = useState<ActivePunch | null>(null);
     const lastPunchId = useRef<string>("");
 
@@ -39,11 +40,18 @@ const SceneContent: React.FC<Props> = ({ activePunchRef, speedMultiplier, showOp
             <PerspectiveCamera makeDefault position={[0, 1.3, 2.2]} fov={70} />
 
             {showRing && <BoxingRing />}
-            {showOpponent && <Opponent activePunch={punchData} speedMultiplier={speedMultiplier} showDebug={false} />}
             {showRing && (
                 <Circle args={[10]} rotation-x={-Math.PI / 2} receiveShadow>
                     <meshStandardMaterial color="#222" transparent opacity={0.8} />
                 </Circle>
+            )}
+            {showOpponent && (
+                <Opponent
+                    activePunch={punchData}
+                    speedMultiplier={speedMultiplier}
+                    showDebug={false}
+                    headPos={headPos}
+                />
             )}
         </>
     );
