@@ -54,8 +54,10 @@ export const resolveCombat = (
         // Correct Move: DUCK only
         if (pose === 'DUCK') return 'PERFECT';
 
-        // Slipping a hook is dangerous
-        if (pose === 'LEFT' || pose === 'RIGHT') return 'LUCKY';
+        // Slipping a hook is dangerous -> HIT!
+        // User requested strict rules: "It has to be very smooth... So to dodge hooks user has to do duck only."
+        // Actually, user said: "change the logic from lucky to hit if slipped."
+        if (pose === 'LEFT' || pose === 'RIGHT') return 'HIT';
     }
 
     return 'NONE';
