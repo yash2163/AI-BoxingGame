@@ -2,7 +2,8 @@ import * as THREE from 'three'
 import React, { useEffect } from 'react'
 import { useGraph } from '@react-three/fiber'
 import { useGLTF, useAnimations } from '@react-three/drei'
-import { GLTF, SkeletonUtils } from 'three-stdlib'
+import { SkeletonUtils } from 'three-stdlib'
+import type { GLTF } from 'three-stdlib'
 
 type ActionName =
   | 'Idle'
@@ -28,7 +29,7 @@ type GLTFResult = GLTF & {
   animations: GLTFAction[]
 }
 
-export function OpponentBase(props: JSX.IntrinsicElements['group']) {
+export function OpponentBase(props: React.JSX.IntrinsicElements['group']) {
   const group = React.useRef<THREE.Group>(null!)
 
   // ✅ Correct path
@@ -36,7 +37,7 @@ export function OpponentBase(props: JSX.IntrinsicElements['group']) {
 
   // Clone for proper skeleton binding
   const clone = React.useMemo(() => SkeletonUtils.clone(scene), [scene])
-  const { nodes, materials } = useGraph(clone) as GLTFResult
+  const { nodes, materials } = useGraph(clone) as unknown as GLTFResult
 
   const { actions } = useAnimations(animations, group)
 

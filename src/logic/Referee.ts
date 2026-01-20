@@ -1,10 +1,10 @@
-import type { CalibrationData, PoseResult, PunchSide, PunchType, DodgeRating } from '../types';
+import type { CalibrationData, HeuristicPoseResult, PunchSide, PunchType, DodgeRating } from '../types';
 
 /**
  * Normalizes raw MediaPipe landmarks into a standard coordinate system relative to the user's body.
  * Unit 1.0 = Shoulder Width.
  */
-export const analyzeUserPose = (landmarks: any[], calibration: CalibrationData): PoseResult => {
+export const analyzeUserPose = (landmarks: any[], calibration: CalibrationData): HeuristicPoseResult => {
     const nose = landmarks[0];
     const leftShoulder = landmarks[11];
     const rightShoulder = landmarks[12];
@@ -43,7 +43,7 @@ export const analyzeUserPose = (landmarks: any[], calibration: CalibrationData):
 export const judgeImpact = (
     punchType: PunchType,
     punchSide: PunchSide,
-    pose: PoseResult
+    pose: HeuristicPoseResult
 ): DodgeRating => {
 
     // --- LOGIC 1: STRAIGHTS (Horizontal Oval) ---

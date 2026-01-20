@@ -1,54 +1,97 @@
-export type GameState = 'IDLE' | 'CALIBRATING' | 'PLAYING' | 'FINISHED';
+// src/types.ts
+
+// 1. GAME STATES
+export type GameState =
+    | 'IDLE'
+    | 'CALIBRATING_DIMENSIONS'
+    | 'CALIBRATING_POSES'      // Legacy support
+    | 'TRAINING_AI'
+    | 'PLAYING'
+    | 'FINISHED';
+
+// 2. COMBAT TYPES
 export type PunchType = 'straight' | 'hook';
 export type PunchSide = 'left' | 'right';
+export type PunchStatus = 'scheduled' | 'flying' | 'landed' | 'dodged' | 'missed';
 
-// Updated Statuses for the new logic
-export type PunchStatus = 'scheduled' | 'flying' | 'landed' | 'missed';
-
-// New precise ratings
-export type DodgeRating = 'NONE' | 'HIT' | 'PERFECT' | 'TOO_FAR' | 'EARLY' | 'LATE';
+export type DodgeRating =
+    | 'NONE'
+    | 'HIT'
+    | 'PERFECT'
+    | 'RISKY'
+    | 'LUCKY'
+    | 'TOO_FAR'
+    | 'CAMPING';
 
 export type PoseClass = 'NEUTRAL' | 'LEFT' | 'RIGHT' | 'DUCK';
 
-// --- NEW DATA STRUCTURES ---
+// 3. ML & MATH TYPES
 
-// 1. The "DNA" of a punch (Static data from GLB)
-export interface PunchProfile {
-    animName: string;      // e.g., "LeftHook"
-    duration: number;      // Actual clip duration in seconds (e.g., 2.1s)
-    impactPoint: number;   // Exact % where arm is fully extended (e.g., 0.45)
-    damage: number;        // Base damage value
+// New KNN Normalization
+export interface NormalizeData {
+    noseBase: { x: number, y: number };
+    shoulderWidth: number;
+    torsoHeight: number;
+    hipCenter: { x: number, y: number };
 }
 
-// 2. The Active Instance (Dynamic data during game)
-export interface ActivePunch {
-    id: string;
-    side: PunchSide;
-    type: PunchType;
-    startTime: number;     // Performance.now() timestamp
-    impactTime: number;    // Exact calculated timestamp of impact
-    duration: number;      // Total duration (ms) adjusted for speed
-    status: PunchStatus;
-    rating?: DodgeRating;
+// Legacy Calibration for Referee.ts
+export interface LegacyCalibrationData extends NormalizeData {
+    baselineY: number;
+}
+export type CalibrationData = LegacyCalibrationData; // For Referee.ts
+
+// 8 Features per frame
+export type PoseFeatures = number[];
+// Temporal Window
+export type TemporalWindow = number[];
+
+// KNN Pose Result
+export interface KNNPoseResult {
+    window: TemporalWindow | null;
+    features: PoseFeatures | null;
 }
 
-// 3. User State
-export interface CalibrationData {
-    baselineY: number;     // Nose Y when standing neutral
-    shoulderWidth: number; // Distance between shoulders (Unit of measurement)
+// Heuristic Pose Result (for Referee.ts)
+export interface HeuristicPoseResult {
+    label: string;
+    leanRatio: number;
+    duckRatio: number;
 }
 
-export interface PoseResult {
-    label: string;         // "LEFT", "RIGHT", "DUCK" (For Debug UI)
-    leanRatio: number;     // -1.0 to 1.0 (Horizontal movement)
-    duckRatio: number;     // 0.0 to 1.0 (Vertical movement)
-}
+// Union
+export type PoseResult = KNNPoseResult | HeuristicPoseResult;
 
-// 4. Logs
+// 4. GAME OBJECTS
 export interface FightEvent {
     time: number;
     punch: string;
     userMove: string;
     outcome: string;
     scoreDelta: number;
+}
+
+export interface PunchProfile {
+    animName: string;
+    duration: number;
+    impactPoint: number;
+    damage?: number;
+}
+
+export interface ActivePunch {
+    id: string;
+    side: PunchSide;
+    type: PunchType;
+    startTime: number;
+    impactTime: number;
+    duration: number;
+    status: PunchStatus;
+    rating?: DodgeRating;
+}
+
+// 5. UI HELPERS
+export interface TrainingStep {
+    id: PoseClass;
+    label: string;
+    instruction: string;
 }

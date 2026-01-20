@@ -1,10 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAnimations } from '@react-three/drei';
 import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { LoopOnce, LoopRepeat } from 'three';
-import gsap from 'gsap';
 import { useBoxingAssets } from '../hooks/useBoxingAssets';
+
+// Wait, OpponentBase is used? No, OpponentBase IS the component in OpponentBase.tsx. 
+// Opponent.tsx uses `scene` from `useBoxingAssets` which likely contains the loaded GLTF?
+// Line 18: `const { scene, animations } = useBoxingAssets();`
+// Line 118: `<primitive object={scene} />` - It renders the scene directly.
+// So `OpponentBase` import IS unused in the original file? 
+// Step 217 showed `import { OpponentBase } from './OpponentBase';` but it is NOT used in the code block!
+// So I will remove it.
+
 import type { ActivePunch } from '../types';
 
 interface OpponentProps {
@@ -13,7 +21,7 @@ interface OpponentProps {
     showDebug?: boolean;
 }
 
-export function Opponent({ activePunch, speedMultiplier, showDebug = true }: OpponentProps) {
+export function Opponent({ activePunch, speedMultiplier: _speed, showDebug = true }: OpponentProps) {
     const group = useRef<THREE.Group>(null);
     const { scene, animations } = useBoxingAssets();
     const { actions } = useAnimations(animations, group);
@@ -67,16 +75,6 @@ export function Opponent({ activePunch, speedMultiplier, showDebug = true }: Opp
         punch.fadeIn(0.15).play();
         currentAction.current = punch;
 
-        // --- IMPACT EFFECT (Juice) ---
-        // Slight camera push on impact
-        const initialZ = 2.2;
-        gsap.killTweensOf(camera.position);
-        gsap.to(camera.position, {
-            z: initialZ - 0.35,
-            duration: gameDurationSec * 0.4,
-            ease: "power2.out"
-        });
-
         // --- CLEANUP ---
         // Return to Idle exactly when the punch duration ends
         const timer = setTimeout(() => {
@@ -84,12 +82,6 @@ export function Opponent({ activePunch, speedMultiplier, showDebug = true }: Opp
             idle.reset().fadeIn(0.3).play();
             currentAction.current = idle;
 
-            // Reset Camera
-            gsap.to(camera.position, {
-                z: initialZ,
-                duration: 0.5,
-                ease: "elastic.out(1, 0.75)"
-            });
         }, activePunch.duration);
 
         return () => clearTimeout(timer);
@@ -114,7 +106,7 @@ export function Opponent({ activePunch, speedMultiplier, showDebug = true }: Opp
     });
 
     return (
-        <group ref={group} position={[0, -0.9, 0]} scale={1}>
+        <group ref={group} position={[0, 0, 0]} scale={1}>
             <primitive object={scene} />
 
             {/* DEBUG VISUALS */}
