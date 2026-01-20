@@ -205,7 +205,12 @@ const GeminiBoxingCoach: React.FC = () => {
 
             {/* UI LAYERS */}
             {gameState === 'IDLE' && (
-                <MainMenu cameraReady={isCameraReady} onStart={handleStartCalibration} />
+                <MainMenu
+                    cameraReady={isCameraReady}
+                    onStart={handleStartCalibration}
+                    speed={game.speedMultiplier}
+                    onSpeedChange={game.setSpeedMultiplier}
+                />
             )}
 
             {gameState === 'CALIBRATING_DIMENSIONS' && (

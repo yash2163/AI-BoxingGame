@@ -45,7 +45,7 @@ export function useBoxingAssets() {
         const clips: THREE.AnimationClip[] = [];
         const profiles: Record<string, PunchProfile> = {};
 
-        sources.forEach(({ name, clip, type }) => {
+        sources.forEach(({ name, clip, type: _ }) => {
             if (!clip) return;
             const c = clip.clone();
             c.name = name;
@@ -60,10 +60,16 @@ export function useBoxingAssets() {
             // We set standard impact points based on animation type.
             // Straight punches usually land slightly earlier (45%) than Hooks (55%).
             if (name !== 'Idle') {
+                let impact = 0.5;
+                if (name === 'LeftStraight') impact = 0.290;
+                else if (name === 'RightStraight') impact = 0.296;
+                else if (name === 'LeftHook') impact = 0.256;
+                else if (name === 'RightHook') impact = 0.237;
+
                 profiles[name] = {
                     animName: name,
-                    duration: c.duration, // Actual seconds from the file
-                    impactPoint: type === 'straight' ? 0.45 : 0.55,
+                    duration: c.duration,
+                    impactPoint: impact,
                     damage: 10
                 };
             }
