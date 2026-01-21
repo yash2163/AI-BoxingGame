@@ -3,12 +3,14 @@ import { Loader2, Camera } from 'lucide-react';
 
 interface MainMenuProps {
     cameraReady: boolean;
-    onStart: () => void;
+    onStart: (name: string) => void;
     speed: number;
     onSpeedChange: (speed: number) => void;
 }
 
 export const MainMenu: React.FC<MainMenuProps> = ({ cameraReady, onStart, speed, onSpeedChange }) => {
+    const [name, setName] = React.useState("Guest");
+
     return (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80">
             {!cameraReady ? (
@@ -23,6 +25,18 @@ export const MainMenu: React.FC<MainMenuProps> = ({ cameraReady, onStart, speed,
                             CYBER BOX
                         </h1>
                         <p className="text-cyan-100/60 uppercase tracking-widest text-sm">AI Training Module</p>
+                    </div>
+
+                    {/* NAME INPUT */}
+                    <div className="flex flex-col gap-2 w-full max-w-xs">
+                        <label className="text-xs font-bold text-cyan-400 uppercase">Player Name</label>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="bg-black/50 border border-white/20 rounded-lg p-3 text-white text-center font-mono focus:border-cyan-400 focus:outline-none transition-colors"
+                            placeholder="ENTER ID"
+                        />
                     </div>
 
                     <div className="flex items-center gap-2 bg-gray-900/50 p-4 rounded-xl backdrop-blur border border-white/10">
@@ -40,7 +54,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ cameraReady, onStart, speed,
                     </div>
 
                     <button
-                        onClick={onStart}
+                        onClick={() => onStart(name)}
                         className="group relative bg-white text-black px-12 py-6 text-3xl font-black rounded-full hover:scale-105 transition hover:bg-cyan-400 flex items-center gap-4 shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_rgba(34,211,238,0.6)]"
                     >
                         <Camera className="w-8 h-8 group-hover:rotate-12 transition" />

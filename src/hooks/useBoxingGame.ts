@@ -6,6 +6,7 @@ import type {
     DodgeRating, GameState, PoseClass, PoseFeatures
 } from '../types';
 import { soundManager } from '../logic/SoundManager';
+import { combatAI } from '../logic/CombatAI';
 
 const ROUND_TIME = 60;
 
@@ -72,6 +73,20 @@ export const useBoxingGame = ({ onGameOver }: UseBoxingGameProps) => {
                 setCombo(0);
                 soundManager.playHit(); // Sound
             }
+
+            // REINFORCEMENT LEARNING UPDATE
+            // "HIT" = Player got Hit (AI Success)
+            // Anything else = Player Dodged (AI Fail)
+            const aiSuccess = rating === 'HIT';
+
+            // Map punch back to ActionName style string if needed
+            // But we ideally need the exact ActionName thrown.
+            // Simplified reconstruction:
+            const actionNameParts = punch.side === 'left' ? 'Left' : 'Right';
+            const actionTypeParts = punch.type === 'straight' ? 'Straight' : 'Hook';
+            const actionName = `${actionNameParts}${actionTypeParts}` as any;
+
+            combatAI.updateModel(actionName, aiSuccess);
 
             fightLogRef.current.push({
                 time: ROUND_TIME - timeLeftRef.current,

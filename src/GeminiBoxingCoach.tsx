@@ -22,6 +22,7 @@ import { HitZoneVisualizer } from './components/ui/HitZoneVisualizer';
 // Utils
 import { drawSkeleton } from './logic/drawingUtils';
 import { getCoachingAdvice } from './logic/AiCoachService';
+import { combatAI } from './logic/CombatAI';
 
 const GeminiBoxingCoach: React.FC = () => {
     // 1. HARDWARE & LOGIC REFS
@@ -144,7 +145,10 @@ const GeminiBoxingCoach: React.FC = () => {
     };
 
     // 5. HANDLERS
-    const handleStartCalibration = () => setGameState('CALIBRATING_DIMENSIONS');
+    const handleStartCalibration = (name: string) => {
+        combatAI.loadProfile(name); // Load RL Profile
+        setGameState('CALIBRATING_DIMENSIONS');
+    };
 
     const handleLockPosition = () => {
         setGameState('TRAINING_AI');
