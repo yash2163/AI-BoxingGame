@@ -15,10 +15,12 @@ import { useBoxingGame } from './hooks/useBoxingGame';
 import { Scene3D } from './components/Scene3D';
 import { CalibrationUI } from './components/ui/CalibrationUI';
 import { TrainingUI } from './components/ui/TrainingUI';
+
 import { GameHUD } from './components/ui/GameHUD';
 import { MainMenu } from './components/ui/MainMenu';
 import { GameOverScreen } from './components/ui/GameOverScreen';
 import { HitZoneVisualizer } from './components/ui/HitZoneVisualizer';
+import { UserManual } from './components/ui/UserManual';
 
 // Utils
 import { drawSkeleton } from './logic/drawingUtils';
@@ -228,7 +230,12 @@ const GeminiBoxingCoach: React.FC = () => {
                     onStart={handleStartCalibration}
                     speed={game.speedMultiplier}
                     onSpeedChange={game.setSpeedMultiplier}
+                    onOpenManual={() => setGameState('MANUAL')}
                 />
+            )}
+
+            {gameState === 'MANUAL' && (
+                <UserManual onBack={() => setGameState('IDLE')} />
             )}
 
             {gameState === 'CALIBRATING_DIMENSIONS' && (
@@ -250,11 +257,13 @@ const GeminiBoxingCoach: React.FC = () => {
                 </>
             )}
 
+
+
             {gameState === 'PLAYING' && (
                 <GameHUD
                     score={game.score}
                     currentPoseLabel={currentPoseLabel}
-                    damageFlash={game.damageFlash}
+                    flashColor={game.flashColor}
                     bonusText={game.bonusText}
                     timeLeft={game.timeLeft}
                 />

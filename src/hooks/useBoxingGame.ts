@@ -23,7 +23,7 @@ export const useBoxingGame = ({ onGameOver, onCombatResult }: UseBoxingGameProps
     const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
 
     // UI Effects
-    const [damageFlash, setDamageFlash] = useState(false);
+    const [flashColor, setFlashColor] = useState<string | null>(null);
     const [bonusText, setBonusText] = useState<{ msg: string, color: string } | null>(null);
 
     // Refs
@@ -49,14 +49,16 @@ export const useBoxingGame = ({ onGameOver, onCombatResult }: UseBoxingGameProps
 
         if (rating === 'HIT') {
             points = -100;
-            setDamageFlash(true);
-            setTimeout(() => setDamageFlash(false), 200);
+            setFlashColor('red'); // Hit Flash
+            setTimeout(() => setFlashColor(null), 200);
             color = 'text-red-600';
         } else if (rating === 'PERFECT') {
             points = 300;
             color = 'text-green-400';
         } else if (rating === 'RISKY') {
             points = 50;
+            setFlashColor('orange'); // Risky Flash
+            setTimeout(() => setFlashColor(null), 200);
             color = 'text-orange-400';
         } else if (rating === 'LUCKY') {
             points = 100;
@@ -220,7 +222,7 @@ export const useBoxingGame = ({ onGameOver, onCombatResult }: UseBoxingGameProps
         timeLeft,
         activePunchRef,
         fightLogRef,
-        damageFlash,
+        flashColor,
         bonusText,
         combo,
         startGame,

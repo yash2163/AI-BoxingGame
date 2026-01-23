@@ -3,17 +3,22 @@ import React from 'react';
 interface GameHUDProps {
     score: number;
     currentPoseLabel: string;
-    damageFlash: boolean;
+    flashColor: string | null;
     bonusText?: { msg: string, color: string } | null;
     timeLeft: number;
 }
 
-export const GameHUD: React.FC<GameHUDProps> = ({ score, currentPoseLabel, damageFlash, bonusText, timeLeft }) => {
+export const GameHUD: React.FC<GameHUDProps> = ({ score, currentPoseLabel, flashColor, bonusText, timeLeft }) => {
     // Format Time 00:00
     const mins = Math.floor(timeLeft / 60);
     const secs = timeLeft % 60;
     const timeString = `${mins}:${secs.toString().padStart(2, '0')}`;
     const isLowTime = timeLeft <= 10;
+
+    // Determine Flash Color Class
+    let flashClass = '';
+    if (flashColor === 'red') flashClass = 'bg-red-600/30';
+    if (flashColor === 'orange') flashClass = 'bg-orange-500/30';
 
     return (
         <>
@@ -38,9 +43,19 @@ export const GameHUD: React.FC<GameHUDProps> = ({ score, currentPoseLabel, damag
                 </div>
             </div>
 
-            {/* RED FLASH */}
-            {damageFlash && (
-                <div className="absolute inset-0 z-40 bg-red-600/30 pointer-events-none mix-blend-overlay animate-pulse" />
+            {/* BONUS TEXT */}
+            {bonusText && (
+                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none animate-in fade-in zoom-in slide-in-from-bottom-5 duration-300">
+                    <div className={`text-6xl font-black italic ${bonusText.color} drop-shadow-lg`}>
+                        {bonusText.msg}
+                    </div>
+                </div>
+            )}
+
+
+            {/* FLASH OVERLAY */}
+            {flashColor && (
+                <div className={`absolute inset-0 z-40 pointer-events-none mix-blend-overlay animate-pulse ${flashClass}`} />
             )}
         </>
     );

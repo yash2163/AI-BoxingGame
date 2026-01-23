@@ -7,7 +7,8 @@ export type GameState =
     | 'CALIBRATING_POSES'      // Legacy support
     | 'TRAINING_AI'
     | 'PLAYING'
-    | 'FINISHED';
+    | 'FINISHED'
+    | 'MANUAL';
 
 // 2. COMBAT TYPES
 export type PunchType = 'straight' | 'hook';

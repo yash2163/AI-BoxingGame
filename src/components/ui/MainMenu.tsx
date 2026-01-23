@@ -6,9 +6,10 @@ interface MainMenuProps {
     onStart: (name: string) => void;
     speed: number;
     onSpeedChange: (speed: number) => void;
+    onOpenManual: () => void;
 }
 
-export const MainMenu: React.FC<MainMenuProps> = ({ cameraReady, onStart, speed, onSpeedChange }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ cameraReady, onStart, speed, onSpeedChange, onOpenManual }) => {
     const [name, setName] = React.useState("Guest");
 
     return (
@@ -53,13 +54,22 @@ export const MainMenu: React.FC<MainMenuProps> = ({ cameraReady, onStart, speed,
                         <span className="text-xl font-mono font-bold w-12 text-right">{speed.toFixed(1)}x</span>
                     </div>
 
-                    <button
-                        onClick={() => onStart(name)}
-                        className="group relative bg-white text-black px-12 py-6 text-3xl font-black rounded-full hover:scale-105 transition hover:bg-cyan-400 flex items-center gap-4 shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_rgba(34,211,238,0.6)]"
-                    >
-                        <Camera className="w-8 h-8 group-hover:rotate-12 transition" />
-                        ENTER RING
-                    </button>
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => onStart(name)}
+                            className="group relative bg-white text-black px-12 py-6 text-3xl font-black rounded-full hover:scale-105 transition hover:bg-cyan-400 flex items-center gap-4 shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_rgba(34,211,238,0.6)]"
+                        >
+                            <Camera className="w-8 h-8 group-hover:rotate-12 transition" />
+                            ENTER RING
+                        </button>
+
+                        <button
+                            onClick={onOpenManual}
+                            className="px-8 py-6 text-sm font-bold tracking-widest text-white border border-white/20 rounded-full hover:bg-white/10 hover:border-cyan-400 transition"
+                        >
+                            HOW TO PLAY
+                        </button>
+                    </div>
 
                     <div className="text-white/30 text-xs mt-8">
                         Stand 6-8 feet away • Ensure good lighting
