@@ -12,9 +12,10 @@ const ROUND_TIME = 60;
 
 interface UseBoxingGameProps {
     onGameOver: (score: number) => void;
+    onCombatResult?: (punch: ActivePunch, rating: DodgeRating, poseLabel: string) => void;
 }
 
-export const useBoxingGame = ({ onGameOver }: UseBoxingGameProps) => {
+export const useBoxingGame = ({ onGameOver, onCombatResult }: UseBoxingGameProps) => {
     // State
     const [score, setScore] = useState(0);
     const [combo, setCombo] = useState(0); // Currently unused in HUD but tracked
@@ -95,6 +96,11 @@ export const useBoxingGame = ({ onGameOver }: UseBoxingGameProps) => {
                 outcome: rating,
                 scoreDelta: points
             });
+
+            // --- REAL TIME COACH TRIGGER ---
+            if (onCombatResult) {
+                onCombatResult(punch, rating, poseLabel);
+            }
         }
     };
 
@@ -225,3 +231,4 @@ export const useBoxingGame = ({ onGameOver }: UseBoxingGameProps) => {
         gameStateRef // exposed if needed to check state synchronously
     };
 };
+

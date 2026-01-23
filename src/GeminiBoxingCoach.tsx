@@ -3,7 +3,8 @@ import React, { useRef, useState } from 'react';
 // Logic & Types
 import { FeatureExtractor } from './logic/FeatureExtractor';
 import { KNNClassifier } from './logic/PoseModel';
-import type { GameState } from './types';
+import { RealTimeCoachService } from './logic/RealTimeCoach';
+import type { GameState, ActivePunch, DodgeRating, PoseClass } from './types';
 
 // Hooks
 import { usePoseTracking } from './hooks/usePoseTracking';
@@ -32,6 +33,7 @@ const GeminiBoxingCoach: React.FC = () => {
 
     const featureExtractorRef = useRef(new FeatureExtractor());
     const classifierRef = useRef(new KNNClassifier());
+    const realTimeCoachRef = useRef(new RealTimeCoachService());
 
     // 2. STATE
     const [gameState, setGameState] = useState<GameState>('IDLE');
@@ -45,6 +47,19 @@ const GeminiBoxingCoach: React.FC = () => {
         onGameOver: (_) => {
             setGameState('FINISHED');
             // Assuming we might want to fetch feedback here or wait for user action
+        },
+        onCombatResult: (punch: ActivePunch, rating: DodgeRating, poseLabel: string) => {
+            // Trigger Real-Time Coach
+            if (canvasRef.current) {
+                // Capture low-res snapshot for speed
+                const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.5);
+                realTimeCoachRef.current.analyzeInteraction(dataUrl, {
+                    punchType: punch.type,
+                    punchSide: punch.side,
+                    outcome: rating,
+                    userMove: poseLabel as PoseClass
+                });
+            }
         }
     });
 
