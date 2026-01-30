@@ -47,12 +47,12 @@ export const useBoxingGame = ({ onGameOver, onCombatResult }: UseBoxingGameProps
         let points = 0;
         let color = 'text-gray-500';
 
-        if (rating === 'HIT') {
+        if (rating === 'HIT' || rating === 'NOT_FAR_ENOUGH' || rating === 'NOT_DEEP_ENOUGH') {
             points = -100;
             setFlashColor('red'); // Hit Flash
             setTimeout(() => setFlashColor(null), 200);
             color = 'text-red-600';
-        } else if (rating === 'PERFECT') {
+        } else if (rating === 'PERFECT' || rating === 'TOO_FAR' || rating === 'TOO_LOW') {
             points = 300;
             color = 'text-green-400';
         } else if (rating === 'RISKY') {
@@ -195,12 +195,15 @@ export const useBoxingGame = ({ onGameOver, onCombatResult }: UseBoxingGameProps
             if (progress > 0.35 && progress < 0.75) {
                 const outcome = resolveCombat(p, poseLabel as PoseClass, features);
                 if (outcome !== 'NONE' && outcome !== 'CAMPING') {
-                    p.status = 'dodged';
+                    // Determine if this specific outcome counts as a Hit or Dodge
+                    const isHit = outcome === 'HIT' || outcome === 'NOT_FAR_ENOUGH' || outcome === 'NOT_DEEP_ENOUGH';
+
+                    p.status = isHit ? 'landed' : 'dodged';
                     p.rating = outcome;
                     handleOutcome(outcome, p, poseLabel);
                 }
             }
-            // Hit Window
+            // Hit Window (Timeout)
             else if (progress >= 0.80) {
                 p.status = 'landed';
                 p.rating = 'HIT';

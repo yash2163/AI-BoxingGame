@@ -1,4 +1,5 @@
-import type { ActivePunch, DodgeRating, PoseClass, PoseFeatures } from '../types';
+import { judgeImpact } from './Referee';
+import type { ActivePunch, DodgeRating, PoseClass, PoseFeatures, HeuristicPoseResult } from '../types';
 
 // CONFIG
 const MIN_VELOCITY_THRESHOLD = 0.05; // Minimum movement speed to count as a dodge
@@ -26,39 +27,15 @@ export const resolveCombat = (
         return 'CAMPING';
     }
 
-    // 2. NEUTRAL CHECK
-    if (pose === 'NEUTRAL') return 'NONE';
+    // 2. CONSTRUCT POSE RESULT FOR REFEREE
+    // Feature 0: Head Horizontal Normalized (Lean)
+    // Feature 1: Head Vertical Normalized (Duck)
+    const poseResult: HeuristicPoseResult = {
+        label: pose,
+        leanRatio: features[0],
+        duckRatio: features[1]
+    };
 
-    // 3. RULE TABLE
-    const pType = punch.type;
-    const pSide = punch.side;
-
-    // --- STRAIGHTS ---
-    if (pType === 'straight') {
-        // Correct Move: Slip Opposite
-        if (pSide === 'left') {
-            if (pose === 'RIGHT') return 'PERFECT';
-            if (pose === 'LEFT') return 'RISKY'; // Slip into punch
-            if (pose === 'DUCK') return 'LUCKY'; // Ducking straight is okay but risky
-        }
-
-        if (pSide === 'right') {
-            if (pose === 'LEFT') return 'PERFECT';
-            if (pose === 'RIGHT') return 'RISKY';
-            if (pose === 'DUCK') return 'LUCKY';
-        }
-    }
-
-    // --- HOOKS ---
-    if (pType === 'hook') {
-        // Correct Move: DUCK only
-        if (pose === 'DUCK') return 'PERFECT';
-
-        // Slipping a hook is dangerous -> HIT!
-        // User requested strict rules: "It has to be very smooth... So to dodge hooks user has to do duck only."
-        // Actually, user said: "change the logic from lucky to hit if slipped."
-        if (pose === 'LEFT' || pose === 'RIGHT') return 'HIT';
-    }
-
-    return 'NONE';
+    // 3. DELEGATE TO OVAL JUDGE
+    return judgeImpact(punch.type, punch.side, poseResult);
 };

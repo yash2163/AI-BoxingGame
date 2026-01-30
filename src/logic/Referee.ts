@@ -77,6 +77,14 @@ export const judgeImpact = (
             const isCorrectDirection = (punchSide === 'left' && x < 0) || (punchSide === 'right' && x > 0);
             if (!isCorrectDirection) return 'RISKY'; // Safe, but wrong way
         }
+
+        // Hooks: Must DUCK, not SLIP
+        if (punchType === 'hook') {
+            // Inner rx is 0.20, so if we are outside that, we likely slipped.
+            // If we have significant lateral movement, penalize it.
+            if (Math.abs(x) > 0.2) return 'LUCKY';
+        }
+
         return 'PERFECT';
     }
 

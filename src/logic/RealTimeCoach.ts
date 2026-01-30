@@ -5,7 +5,7 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 // Rate limiting and configuration
 const COOLDOWN_MS = 6000; // Minimum time between comments
-const MAX_QUEUE_SIZE = 1; // Don't build up a backlog
+
 
 export interface CoachEvent {
     punchType: PunchType;
