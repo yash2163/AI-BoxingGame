@@ -36,6 +36,7 @@ const GeminiBoxingCoach: React.FC = () => {
     const featureExtractorRef = useRef(new FeatureExtractor());
     const classifierRef = useRef(new KNNClassifier());
     const realTimeCoachRef = useRef(new RealTimeCoachService());
+    const shouldRecenterRef = useRef(false);
 
     // 2. STATE
     const [gameState, setGameState] = useState<GameState>('IDLE');
@@ -70,6 +71,7 @@ const GeminiBoxingCoach: React.FC = () => {
         classifier: classifierRef.current,
         featureExtractor: featureExtractorRef.current,
         onTrainingComplete: () => {
+            shouldRecenterRef.current = true;
             setGameState('PLAYING');
             game.startGame();
         }
@@ -115,6 +117,12 @@ const GeminiBoxingCoach: React.FC = () => {
         const landmarks = results.poseLandmarks;
         const nose = landmarks[0];
 
+        // Auto-Recenter Hook
+        if (shouldRecenterRef.current) {
+            featureExtractorRef.current.recenter(landmarks);
+            shouldRecenterRef.current = false;
+        }
+
         // --- STATE MACHINE HANDLERS ---
 
         // A. CALIBRATION (Baseline)
@@ -151,11 +159,20 @@ const GeminiBoxingCoach: React.FC = () => {
         // C. PLAYING (Game Loop)
         else if (gameState === 'PLAYING') {
             const result = featureExtractorRef.current.processFrame(landmarks);
-            if (result && result.window && result.features) {
-                const poseLabel = classifierRef.current.predict(result.window);
-                setCurrentPoseLabel(poseLabel);
+
+            // UI Visualizer Update (Immediate)
+            if (result && result.features) {
                 // Update Head Pos for UI (Feature 0=dx, 1=dy)
                 setHeadPos({ x: result.features[0], y: result.features[1] });
+
+                // Classifier & Game Logic
+                let poseLabel = currentPoseLabel; // Keep last known or default
+                if (result.window) {
+                    poseLabel = classifierRef.current.predict(result.window);
+                    setCurrentPoseLabel(poseLabel);
+                }
+
+                // Tick Game Logic
                 game.processGameFrame(poseLabel, result.features, now);
             }
         }

@@ -5,10 +5,10 @@ import { Opponent } from './Opponent';
 import type { ActivePunch } from '../types';
 
 const BoxingRing = () => (
-    <group position={[0, -3.5, 0]}>
+    <group position={[0, -1.8, 0]}>
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
             <planeGeometry args={[100, 100]} />
-            <meshStandardMaterial color="#f0f0f0" roughness={0.5} metalness={0.1} />
+            <meshStandardMaterial color="#2a2a2a" roughness={0.8} metalness={0.2} />
         </mesh>
     </group>
 );
@@ -35,9 +35,9 @@ const SceneContent: React.FC<Props> = ({ activePunchRef, speedMultiplier, showOp
     return (
         <>
             <Environment preset="city" />
-            <ambientLight intensity={0.7} />
-            <directionalLight position={[2, 5, 2]} intensity={1.5} castShadow />
-            <PerspectiveCamera makeDefault position={[0, 1.3, 2.2]} fov={70} />
+            <ambientLight intensity={0.5} />
+            <directionalLight position={[0, 5, 5]} intensity={1.2} castShadow />
+            <PerspectiveCamera makeDefault position={[0, 1.6, 2.5]} fov={60} />
 
             {showRing && <BoxingRing />}
             {showRing && (

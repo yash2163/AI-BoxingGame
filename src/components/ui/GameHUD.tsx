@@ -16,46 +16,50 @@ export const GameHUD: React.FC<GameHUDProps> = ({ score, currentPoseLabel, flash
     const isLowTime = timeLeft <= 10;
 
     // Determine Flash Color Class
-    let flashClass = '';
-    if (flashColor === 'red') flashClass = 'bg-red-600/30';
-    if (flashColor === 'orange') flashClass = 'bg-orange-500/30';
+
 
     return (
         <>
-            {/* TOP HUD */}
-            <div className="absolute top-0 left-0 p-8 z-30 w-full flex justify-between pointer-events-none items-start">
-                {/* SCORE */}
-                <div className="bg-black/50 p-6 rounded-2xl border border-white/10 backdrop-blur-md">
-                    <div className="text-gray-400 text-xs font-bold uppercase tracking-widest">Score</div>
-                    <div className="text-6xl font-black text-white">{score}</div>
+            {/* SCANLINE OVERLAY */}
+            <div className="absolute inset-0 z-10 pointer-events-none opacity-10 bg-[url('https://media.istockphoto.com/id/1346575545/vector/scan-lines-pattern-overlay-vector-texture.jpg?s=612x612&w=0&k=20&c=Lw-bdfu0J8v2tP1lA5vJ8xZk5j0j3q4q8pQ8qQ8qQ8q=')] bg-cover mix-blend-overlay" />
+
+            {/* TOP HUD: Minimalist Bar */}
+            <div className="absolute top-0 left-0 w-full p-6 z-30 flex justify-between items-start pointer-events-none">
+                {/* LEFT: Score */}
+                <div className="flex flex-col">
+                    <div className="text-cyan-500 text-[10px] font-bold tracking-[0.2em] uppercase">Score</div>
+                    <div className="text-4xl font-mono text-white tracking-widest leading-none">{score.toString().padStart(6, '0')}</div>
                 </div>
 
-                {/* TIMER (Center) */}
-                <div className={`bg-black/50 px-8 py-4 rounded-b-2xl border-x border-b border-white/10 backdrop-blur-md transition-colors ${isLowTime ? 'border-red-500 bg-red-900/40' : ''}`}>
-                    <div className={`text-5xl font-mono font-black tracking-widest ${isLowTime ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                {/* CENTER: Timer */}
+                <div className={`flex flex-col items-center ${isLowTime ? 'animate-pulse' : ''}`}>
+                    <div className={`text-5xl font-mono font-light tracking-widest ${isLowTime ? 'text-red-500' : 'text-white'}`}>
                         {timeString}
                     </div>
+                    <div className="text-white/30 text-[9px] tracking-[0.3em] font-bold uppercase mt-1">Round Time</div>
                 </div>
 
-                {/* POSE LABEL */}
-                <div className="text-4xl font-mono text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
-                    {currentPoseLabel}
+                {/* RIGHT: Status */}
+                <div className="flex flex-col items-end">
+                    <div className="text-cyan-500 text-[10px] font-bold tracking-[0.2em] uppercase">Analysis</div>
+                    <div className="text-2xl font-mono text-white tracking-widest">{currentPoseLabel}</div>
                 </div>
             </div>
 
-            {/* BONUS TEXT */}
+            {/* FEEDBACK: Bottom Center (Unobtrusive) */}
             {bonusText && (
-                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none animate-in fade-in zoom-in slide-in-from-bottom-5 duration-300">
-                    <div className={`text-6xl font-black italic ${bonusText.color} drop-shadow-lg`}>
-                        {bonusText.msg}
+                <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30 pointer-events-none animate-in fade-in zoom-in duration-200">
+                    <div className={`px-6 py-2 bg-black/60 border-x-2 border-white/20 backdrop-blur-sm shadow-xl ${bonusText.color}`}>
+                        <div className="text-xl font-bold font-mono tracking-widest uppercase text-center whitespace-nowrap">
+                            {bonusText.msg}
+                        </div>
                     </div>
                 </div>
             )}
 
-
-            {/* FLASH OVERLAY */}
-            {flashColor && (
-                <div className={`absolute inset-0 z-40 pointer-events-none mix-blend-overlay animate-pulse ${flashClass}`} />
+            {/* CRITICAL OVERLAY (Red Flash only on edges) */}
+            {flashColor === 'red' && (
+                <div className="absolute inset-0 z-40 pointer-events-none shadow-[inset_0_0_100px_rgba(220,38,38,0.5)] animate-pulse" />
             )}
         </>
     );

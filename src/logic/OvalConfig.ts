@@ -16,7 +16,7 @@ export const OVAL_ZONES = {
     // HOOKS: Vertical Oval (Tall Y)
     // Forces Ducking
     HOOK: {
-        inner: { rx: 0.20, ry: 0.40 },
+        inner: { rx: 0.20, ry: 0.32 },
         outer: { rx: 0.45, ry: 0.80 }
     }
 };

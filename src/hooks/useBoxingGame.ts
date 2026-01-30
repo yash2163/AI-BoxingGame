@@ -67,7 +67,28 @@ export const useBoxingGame = ({ onGameOver, onCombatResult }: UseBoxingGameProps
 
         if (points !== 0) {
             setScore(s => Math.max(0, s + points));
-            setBonusText({ msg: rating, color });
+
+            // Generate Detailed Feedback Message
+            let detail = rating.toString().replace(/_/g, ' ');
+
+            if (rating === 'PERFECT') {
+                if (poseLabel === 'DUCK') detail = "PERFECT DUCK";
+                else if (poseLabel === 'LEFT' || poseLabel === 'RIGHT') detail = `PERFECT ${poseLabel} SLIP`;
+            } else if (rating === 'LUCKY') {
+                detail = "LUCKY (DUCK NEXT TIME)";
+            } else if (rating === 'RISKY') {
+                detail = "RISKY (TOO CLOSE)";
+            } else if (rating === 'TOO_FAR') {
+                detail = "SAFE (WIDE SLIP)"; // Renamed for clarity to user
+            } else if (rating === 'NOT_FAR_ENOUGH') {
+                detail = "HIT (SLIP FURTHER)";
+            } else if (rating === 'NOT_DEEP_ENOUGH') {
+                detail = "HIT (DUCK DEEPER)";
+            } else if (rating === 'TOO_LOW') {
+                detail = "SAFE (DEEP DUCK)";
+            }
+
+            setBonusText({ msg: detail, color });
             setTimeout(() => setBonusText(null), 1000);
             if (points > 0) {
                 setCombo(c => c + 1);

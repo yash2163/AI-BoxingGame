@@ -22,6 +22,26 @@ export class FeatureExtractor {
         this.prevFeatures = null;
     }
 
+    recenter(rawLandmarks: any[]) {
+        if (!this.baseline || !rawLandmarks || rawLandmarks.length < 33) return;
+
+        const nose = rawLandmarks[0];
+        const lSh = rawLandmarks[11];
+        const rSh = rawLandmarks[12];
+        const lHip = rawLandmarks[23];
+        const rHip = rawLandmarks[24];
+
+        // Update Center Points
+        this.baseline.noseBase = { x: nose.x, y: nose.y };
+        this.baseline.hipCenter = { x: (lHip.x + rHip.x) / 2, y: (lHip.y + rHip.y) / 2 };
+
+        // Update Scale Factors (Handling distance change)
+        // If user stands up and moves back, shoulders appear narrower. 
+        // We must update width to keep sensitivity high.
+        this.baseline.shoulderWidth = Math.abs(lSh.x - rSh.x);
+        this.baseline.torsoHeight = Math.abs(((lSh.y + rSh.y) / 2) - ((lHip.y + rHip.y) / 2));
+    }
+
     processFrame(rawLandmarks: any[]): { features: PoseFeatures | null, window: TemporalWindow | null } {
         // Guard Clause: Return empty object if not ready
         if (!this.baseline || !rawLandmarks || rawLandmarks.length < 33) {
