@@ -42,4 +42,90 @@ To achieve a smooth 60 FPS, I decoupled the high-frequency logic from React's re
 A custom timing hook ensures that React's component lifecycle doesn't interfere with the combat rhythm, preventing race conditions where the game loop would "eat" punch events during re-renders.
 
 ### 3. Dynamic Normalization
-The
+The `FeatureExtractor` captures a baseline "Neutral Stance" at the start of the round. All subsequent movements are calculated as ratios relative to this baseline, making the game robust to players moving around the room.
+
+---
+
+## 💻 Tech Stack
+
+* **Frontend:** React 18, TypeScript, Vite
+* **ML & Vision:** TensorFlow.js, MediaPipe Pose, KNN Classifier
+* **Graphics:** Three.js, React Three Fiber (R3F), Drei
+* **Styling:** Tailwind CSS
+* **AI API:** Google Gemini 1.5 Flash
+
+---
+
+## ⚡ Getting Started
+
+### Prerequisites
+* Node.js (v16+)
+* A webcam
+* A Google Gemini API Key (Get it [here](https://aistudio.google.com/))
+
+### Installation
+
+1.  **Clone the repository**
+    ```bash
+    git clone [https://github.com/yourusername/cyber-box.git](https://github.com/yourusername/cyber-box.git)
+    cd cyber-box
+    ```
+
+2.  **Install dependencies**
+    ```bash
+    npm install
+    ```
+
+3.  **Setup Environment Variables**
+    Create a `.env` file in the root directory:
+    ```env
+    VITE_GEMINI_API_KEY=your_api_key_here
+    ```
+
+4.  **Run the Development Server**
+    ```bash
+    npm run dev
+    ```
+
+5.  Open `http://localhost:5173` in your browser. Allow camera permissions and start boxing!
+
+---
+
+## 🕹️ How to Play
+
+1.  **Calibration:** Stand 6-8 feet back. Follow the on-screen prompts (Neutral, Slip Left, Slip Right, Duck). This trains the AI on *your* body.
+2.  **The Fight:**
+    * **Straights (Long Punches):** Slip Left or Right to dodge.
+    * **Hooks (Wide Punches):** Duck under them.
+    * **Don't Camp:** If you stay in a dodge position too long, the AI will catch you.
+3.  **The Coach:** After the round, read the AI analysis to improve your form.
+
+---
+
+## 🔮 Roadmap
+
+* [ ] **Multiplayer:** WebRTC implementation for real-time PvP shadow boxing.
+* [ ] **VR Mode:** WebXR support for Quest/Vision Pro.
+* [ ] **Combo Recognition:** Detecting player punches (Shadow Boxing offense) using velocity thresholds.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request for any bugs or features.
+
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+**Built with 🥊 by Yash Rajput ** *Data Scientist | Full-Stack AI Engineer*
